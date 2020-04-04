@@ -1,2 +1,2 @@
 # whole-foods-deliverance
-Making the world a better place
+Making the Whole Foods delivery experience a little bit better
