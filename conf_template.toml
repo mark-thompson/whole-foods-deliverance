@@ -1,0 +1,9 @@
+[twilio]
+sid = ""
+token = ""
+from_num = ""
+to_num = ""
+
+[telegram]
+token = ""
+chat_id = ""
