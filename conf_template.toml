@@ -1,8 +1,8 @@
 [twilio]
 sid = ""
 token = ""
-from_num = ""
-to_num = ""
+from_num = "your twilio number (e.g. +12025551234)"
+to_num = "number to text (e.g. +12025551234)"
 
 [telegram]
 token = ""
