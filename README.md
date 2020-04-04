@@ -7,9 +7,10 @@ Born out of frustration with the perennially unavailable Whole Foods delivery sl
 When a slot is found, a friendly voice emanates from your speakers informing you of your good fortune.
 
 Optionally, you can choose to be notified via SMS (Twilio) and/or Telegram by supplying API credentials in `conf.toml`.
+
 More on these services here:
-[Twilio](https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account)
-[Telegram](https://core.telegram.org/bots#6-botfather)
+- [Twilio](https://www.twilio.com/docs/usage/tutorials/how-to-use-your-free-trial-account)
+- [Telegram](https://core.telegram.org/bots#6-botfather)
 
 
 ## Requirements
