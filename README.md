@@ -14,7 +14,8 @@ More on these services here:
 
 
 ## Requirements
-- A mac with Python3.x (tested on 3.7; YMMV) and Google Chrome (sorry)
+- A mac (the audio alerts are mac-specific; the other bits may work on PC. YMMV)
+- Python3.x (tested on 3.7) and Google Chrome (sorry)
 - An Amazon Whole Foods cart populated with items
 - Patience
 
@@ -24,9 +25,9 @@ More on these services here:
   ```
   git clone https://github.com/mark-thompson/whole-foods-deliverance.git
   ```
-- Move to the download directory:
+- Move to the cloned directory (if you downloaded manually, replace the `.` with the download location (e.g. `~/Downloads`)):
   ```
-  cd wherever-you-downloaded-this
+  cd ./whole-foods-deliverance
   ```
 - Create and activate the environment:
   ```
@@ -36,6 +37,12 @@ More on these services here:
   ```
   pip install -r requirements.txt
   ```
+**Optional**
+- Copy the config template to the default deployment location:
+  ```
+  cp conf_template.toml conf.toml
+  ```
+  Open the new file `conf.toml` with your favorite text editor and insert your API credentials
 
 **Note:**
 The default requirements assume you are using the current stable version of Chrome on mac (version 80).
