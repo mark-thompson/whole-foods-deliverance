@@ -43,8 +43,12 @@ def send_telegram(body, conf):
             conf['chat_id'],
             body
         )
-    )
-    return(response.json())
+    ).json()
+
+    if not response.get('ok'):
+        raise requests.exceptions.HTTPError(response)
+    else:
+        return(response)
 
 
 @conf_dependent('twilio')
