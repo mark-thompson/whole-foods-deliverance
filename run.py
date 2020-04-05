@@ -126,16 +126,14 @@ if __name__ == '__main__':
         annoy()
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
     while not slots_available(driver):
+        log.info('No slots found :( waiting...')
         sleep(uniform(20, 30))
         driver.refresh()
         if slots_available(driver):
-            log.info('Found slots :D')
-            alert('Delivery slots found', 'Blow')
+            alert('Delivery slots found')
             send_sms(get_element(driver, Config.Locators.SLOTS).text)
             send_telegram(get_element(driver, Config.Locators.SLOTS).text)
             break
-        else:
-            log.info('No slots :( waiting...')
     try:
         # Allow time to check out manually
         sleep(900)

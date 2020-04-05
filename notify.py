@@ -11,25 +11,24 @@ log = logging.getLogger(__name__)
 
 
 def conf_dependent(conf_key):
-    def outer(func):
-        def inner(*args, **kwargs):
-            try:
-                if 'conf' not in kwargs:
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            if 'conf' not in kwargs:
+                try:
                     kwargs['conf'] = toml.load(Config.CONF_PATH)[conf_key]
-            except Exception:
-                log.error(
-                    "{}() requires a config file at '{}' with key '{}'".format(
-                        func.__name__, Config.CONF_PATH, conf_key
-                    )
-                )
-                return
+                except Exception:
+                    log.error("{}() requires a config file at"
+                              " '{}' with key '{}'".format(func.__name__,
+                                                           Config.CONF_PATH,
+                                                           conf_key))
+                    return
             try:
                 return(func(*args, **kwargs))
             except Exception:
                 log.error('Action failed:', exc_info=True)
                 return
-        return inner
-    return outer
+        return wrapper
+    return decorator
 
 
 @conf_dependent('telegram')
@@ -75,8 +74,11 @@ def alert(message, sound='Blow'):
 
 def annoy():
     """Sorry about it"""
-    for x in range(15):
-        os.popen(
-            'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
-                random()
-            ))
+    try:
+        for _ in range(15):
+            os.popen(
+                'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
+                    random()
+                ))
+    except Exception:
+        pass
