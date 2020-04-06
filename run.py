@@ -56,7 +56,7 @@ def remove_qs(url):
 
 def get_element(driver, locator, **kwargs):
     wait_for_element(driver, locator, **kwargs)
-    return(driver.find_element(*locator))
+    return driver.find_element(*locator)
 
 
 def navigate(driver, locator, **kwargs):
@@ -103,7 +103,7 @@ def wait_for_auth(driver, timeout_mins=10):
 
 def slots_available(driver):
     slots = get_element(driver, Config.Locators.SLOTS)
-    return(Config.Patterns.NO_SLOTS not in slots.text)
+    return Config.Patterns.NO_SLOTS not in slots.text
 
 
 def navigate_to_slot_select(driver):

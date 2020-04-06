@@ -23,7 +23,7 @@ def conf_dependent(conf_key):
                                                            conf_key))
                     return
             try:
-                return(func(*args, **kwargs))
+                return func(*args, **kwargs)
             except Exception:
                 log.error('Action failed:', exc_info=True)
                 return
@@ -48,7 +48,7 @@ def send_telegram(body, conf):
     if not response.get('ok'):
         raise requests.exceptions.HTTPError(response)
     else:
-        return(response)
+        return response
 
 
 @conf_dependent('twilio')
@@ -62,7 +62,7 @@ def send_sms(body, conf):
         from_=conf['from_num'],
         to=conf['to_num']
     )
-    return(result)
+    return result
 
 
 def alert(message, sound='Blow'):
