@@ -4,6 +4,7 @@ import pickle
 import os
 from time import sleep
 from random import uniform
+from datetime import datetime
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
@@ -48,6 +49,11 @@ def wait_for_element(driver, locator, timeout=5):
         raise
 
 
+def remove_qs(url):
+    """Remove URL query string the lazy way"""
+    return url.split('?')[0]
+
+
 def get_element(driver, locator, **kwargs):
     wait_for_element(driver, locator, **kwargs)
     return(driver.find_element(*locator))
@@ -59,11 +65,40 @@ def navigate(driver, locator, **kwargs):
 
 
 def is_logged_in(driver):
-    try:
-        text = get_element(driver, Config.Locators.LOGIN).text
-        return(Config.Patterns.NOT_LOGGED_IN not in text)
-    except Exception:
-        return(False)
+    if remove_qs(driver.current_url) == Config.BASE_URL:
+        try:
+            text = get_element(driver, Config.Locators.LOGIN).text
+            return Config.Patterns.NOT_LOGGED_IN not in text
+        except Exception:
+            return False
+    elif remove_qs(driver.current_url) == Config.AUTH_URL:
+        return False
+    else:
+        # Lazily assume true if we are anywhere but BASE_URL and AUTH_URL
+        return True
+
+
+def wait_for_auth(driver, timeout_mins=10):
+    t = datetime.now()
+    alerted = []
+    if is_logged_in(driver):
+        log.debug('Already logged in')
+        return
+    log.info('Waiting for user login...')
+    while not is_logged_in(driver):
+        elapsed = int((datetime.now() - t).total_seconds() / 60)
+        if is_logged_in(driver):
+            log.info('Logged in')
+            store_cookies(driver)
+            break
+        elif elapsed > timeout_mins:
+            raise RuntimeError(
+                'Timed out waiting for login (>= {}min)'.format(timeout_mins)
+            )
+        elif elapsed not in alerted:
+            alerted.append(elapsed)
+            alert('Log in to continue')
+        sleep(1)
 
 
 def slots_available(driver):
@@ -72,6 +107,10 @@ def slots_available(driver):
 
 
 def navigate_to_slot_select(driver):
+    log.info('Navigating to delivery slot selection')
+    if remove_qs(driver.current_url) != Config.BASE_URL:
+        log.info('Going home first')
+        driver.get(Config.BASE_URL)
     navigate(driver, (By.ID, 'nav-cart'))
     navigate(driver, (
         By.XPATH,
@@ -92,23 +131,12 @@ if __name__ == '__main__':
 
     log.info('Invoking Selenium Chrome webdriver')
     driver = webdriver.Chrome()
-    log.info('Navigating to Amazon')
+    log.info('Navigating to ' + Config.BASE_URL)
     driver.get(Config.BASE_URL)
 
     if args.force_login or not os.path.exists(Config.PKL_PATH):
         # Login and capture Amazon cookie values...
-        log.info('Waiting for user login...')
-        elapsed = 0
-        while not is_logged_in(driver):
-            wait = 1
-            sleep(wait)
-            elapsed += wait
-            if is_logged_in(driver):
-                break
-            if not elapsed % 60:
-                alert('Log in to continue')
-        log.info('Logged in')
-        store_cookies(driver)
+        wait_for_auth(driver)
     else:
         # ...or load from storage
         load_cookies(driver)
@@ -116,11 +144,17 @@ if __name__ == '__main__':
         if is_logged_in(driver):
             log.info('Successfully logged in via stored cookie')
         else:
-            raise RuntimeError('Error logging in with stored cookie.')
-
-    # Navigate from (presumably) BASE_URL to SLOT_URL
-    log.info('Navigating to delivery slot selection')
-    navigate_to_slot_select(driver)
+            log.error('Error logging in with stored cookie')
+            wait_for_auth(driver)
+    try:
+        navigate_to_slot_select(driver)
+    except TimeoutException:
+        if remove_qs(driver.current_url) in [Config.BASE_URL, Config.AUTH_URL]:
+            wait_for_auth(driver)
+            navigate_to_slot_select(driver)
+        else:
+            log.error('Navigation failed')
+            raise
     # Check for delivery slots
     if slots_available(driver):
         annoy()

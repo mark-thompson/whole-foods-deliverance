@@ -4,8 +4,9 @@ from selenium.webdriver.common.by import By
 class Config:
     CONF_PATH = 'conf.toml'
     PKL_PATH = '.session_cookie.pkl'
-    BASE_URL = 'https://www.amazon.com'
-    SLOT_URL = BASE_URL + '/gp/buy/shipoptionselect/handlers/display.html'
+    BASE_URL = 'https://www.amazon.com/'
+    SLOT_URL = BASE_URL + 'gp/buy/shipoptionselect/handlers/display.html'
+    AUTH_URL = BASE_URL + 'ap/signin'
 
     class Patterns:
         NOT_LOGGED_IN = "Hello, Sign in"
