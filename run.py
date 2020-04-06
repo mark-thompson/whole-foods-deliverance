@@ -129,18 +129,12 @@ def wait_for_auth(driver, timeout_mins=10):
 
 def navigate(driver, locator, dest, **kwargs):
     log.info("Navigating via locator: {}".format(locator))
-    try:
-        elem = get_element(driver, locator, **kwargs)
-        jitter(.8)
-        elem.click()
-    except TimeoutException:
-        log.error('Handling login redirect')
-        if remove_qs(driver.current_url) == config.AUTH_URL:
-            wait_for_auth(driver)
-        else:
-            raise
-    if remove_qs(driver.current_url) == dest:
-        log.info("Navigated to '{0}'".format(dest))
+    elem = get_element(driver, locator, **kwargs)
+    jitter(.8)
+    elem.click()
+    if remove_qs(driver.current_url) == config.BASE_URL + dest:
+        log.info("Navigated to '{}'".format(dest))
+    else:
         raise NavigationException("Navigation to '{}' failed".format(dest))
 
 
@@ -151,7 +145,14 @@ def navigate_route(driver, route):
         driver.get(route_start)
     log.info('Navigating route with {} stops'.format(len(route)))
     for t in route:
-        navigate(driver, t[0], t[1])
+        try:
+            navigate(driver, t[0], t[1])
+        except NavigationException:
+            if remove_qs(driver.current_url) == config.AUTH_URL:
+                log.error('Handling login redirect')
+                wait_for_auth(driver)
+            else:
+                raise
     log.info('Route complete')
 
 
