@@ -19,3 +19,18 @@ class Locators:
     LOGIN = (By.ID, 'nav-link-accountList')
     GRID = (By.ID, 'ufss-widget-grid')
     SLOTS = (By.CLASS_NAME, 'ufss-slotselect-container')
+
+
+class Routes:
+    class WholeFoods:
+        TO_SLOT_SELECT = [
+            BASE_URL,
+            ((By.ID, 'nav-cart'),
+                'gp/cart/view.html'),
+            ((By.XPATH, "//*[contains(text(),'Checkout Whole Foods')]/.."),
+                'alm/byg'),
+            ((By.XPATH, "//span[contains(@class, 'byg-continue-button')]"),
+                'alm/substitution'),
+            ((By.ID, 'subsContinueButton'),
+                'gp/buy/shipoptionselect/handlers/display.html')
+        ]

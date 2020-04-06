@@ -6,7 +6,7 @@ from time import sleep
 from random import uniform
 from datetime import datetime
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -17,6 +17,11 @@ from notify import send_sms, send_telegram, alert, annoy
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+
+class NavigationException(WebDriverException):
+    """Thrown when a navigation action does not reach target destination"""
+    pass
 
 
 def store_session_data(driver, path=config.PKL_PATH):
@@ -84,13 +89,6 @@ def get_element(driver, locator, **kwargs):
     return driver.find_element(*locator)
 
 
-def navigate(driver, locator, **kwargs):
-    log.info("Navigating via locator: {}".format(locator))
-    elem = get_element(driver, locator, **kwargs)
-    jitter(.8)
-    elem.click()
-
-
 def is_logged_in(driver):
     if remove_qs(driver.current_url) == config.BASE_URL:
         try:
@@ -128,26 +126,37 @@ def wait_for_auth(driver, timeout_mins=10):
         sleep(1)
 
 
+def navigate(driver, locator, dest, **kwargs):
+    log.info("Navigating via locator: {}".format(locator))
+    try:
+        elem = get_element(driver, locator, **kwargs)
+        jitter(.8)
+        elem.click()
+    except TimeoutException:
+        log.error('Handling login redirect')
+        if remove_qs(driver.current_url) == config.AUTH_URL:
+            wait_for_auth(driver)
+        else:
+            raise
+    if remove_qs(driver.current_url) == dest:
+        log.info("Navigated to '{0}'".format(dest))
+        raise NavigationException("Navigation to '{}' failed".format(dest))
+
+
+def navigate_route(driver, route):
+    route_start = route.pop(0)
+    if remove_qs(driver.current_url) != route_start:
+        log.info('Navigating to route start: {}'.format(route_start))
+        driver.get(route_start)
+    log.info('Navigating route with {} stops'.format(len(route)))
+    for t in route:
+        navigate(driver, t[0], t[1])
+    log.info('Route complete')
+
+
 def slots_available(driver):
     slots = get_element(driver, config.Locators.SLOTS)
     return config.Patterns.NO_SLOTS not in slots.text
-
-
-def navigate_to_slot_select(driver):
-    log.info('Navigating to delivery slot selection')
-    if remove_qs(driver.current_url) != config.BASE_URL:
-        log.info('Going home first')
-        driver.get(config.BASE_URL)
-    navigate(driver, (By.ID, 'nav-cart'))
-    navigate(driver, (
-        By.XPATH,
-        "//*[contains(text(),'{}')]/..".format(config.Patterns.WF_CHECKOUT)
-    ))
-    navigate(driver, (
-        By.XPATH,
-        "//span[contains(@class, 'byg-continue-button')]"
-    ))
-    navigate(driver, (By.ID, 'subsContinueButton'))
 
 
 if __name__ == '__main__':
@@ -173,15 +182,8 @@ if __name__ == '__main__':
         else:
             log.error('Error logging in with stored session data')
             wait_for_auth(driver)
-    try:
-        navigate_to_slot_select(driver)
-    except TimeoutException:
-        if remove_qs(driver.current_url) in [config.BASE_URL, config.AUTH_URL]:
-            wait_for_auth(driver)
-            navigate_to_slot_select(driver)
-        else:
-            log.error('Navigation failed')
-            raise
+    # Navigate from BASE_URL to SLOT_URL
+    navigate_route(driver, config.Routes.WholeFoods.TO_SLOT_SELECT)
     # Check for delivery slots
     if slots_available(driver):
         annoy()
