@@ -23,7 +23,7 @@ class Locators:
 
 class Routes:
     class WholeFoods:
-        TO_SLOT_SELECT = [
+        SLOT_SELECT = [
             BASE_URL,
             ((By.ID, 'nav-cart'),
                 'gp/cart/view.html'),
@@ -33,4 +33,13 @@ class Routes:
                 'alm/substitution'),
             ((By.ID, 'subsContinueButton'),
                 'gp/buy/shipoptionselect/handlers/display.html')
+        ]
+        CHECKOUT = [
+            SLOT_URL,
+            ((By.XPATH, "//*[contains(@class, 'ufss-overview-continue-button')]"),
+                'gp/buy/payselect/handlers/display.html'),
+            ((By.ID, 'continue-top'),
+                'gp/buy/spc/handlers/display.html')
+            ((By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),
+                None)
         ]

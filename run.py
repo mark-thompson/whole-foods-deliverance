@@ -159,7 +159,7 @@ if __name__ == '__main__':
             log.error('Error logging in with stored session data')
             wait_for_auth(driver)
     # Navigate from BASE_URL to SLOT_URL
-    navigate_route(driver, config.Routes.WholeFoods.TO_SLOT_SELECT)
+    navigate_route(driver, config.Routes.WholeFoods.SLOT_SELECT)
     # Check for delivery slots
     if slots_available(driver):
         annoy()
