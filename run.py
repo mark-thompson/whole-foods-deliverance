@@ -66,7 +66,7 @@ def wait_for_auth(driver, timeout_mins=10):
             )
         elif elapsed not in alerted:
             alerted.append(elapsed)
-            alert('Log in to continue')
+            alert('Log in to proceed')
         sleep(1)
     log.info('Logged in')
     utils.store_session_data(driver)
