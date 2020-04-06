@@ -19,24 +19,44 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def store_cookies(driver, path=Config.PKL_PATH):
-    cookies = driver.get_cookies()
-    if cookies:
-        log.info('Writing session cookie to: ' + path)
+def store_session_data(driver, path=Config.PKL_PATH):
+    data = {
+        'cookies': driver.get_cookies(),
+        'storage': {
+            k: driver.execute_script(
+                'for(var k,s=window.{}Storage,d={{}},i=0;i<s.length;++i)'
+                'd[k=s.key(i)]=s.getItem(k);return d'.format(k)
+            ) for k in ['local', 'session']
+        }
+    }
+    if any(data.values()):
+        log.info('Writing session data to: ' + path)
         with open(path, 'wb') as file:
-            pickle.dump(cookies, file)
+            pickle.dump(data, file)
+    else:
+        log.warning('No session data found')
 
 
-def load_cookies(driver, path=Config.PKL_PATH):
-    log.info('Reading cookie values from: ' + path)
+def load_session_data(driver, path=Config.PKL_PATH):
+    log.info('Reading session data from: ' + path)
     with open(path, 'rb') as file:
-        cookies = pickle.load(file)
-    if cookies:
-        log.info('Found {} cookie values'.format(len(cookies)))
-        for c in cookies:
+        data = pickle.load(file)
+    if data.get('cookies'):
+        log.info('Loading {} cookie values'.format(len(data['cookies'])))
+        for c in data['cookies']:
             if c.get('expiry'):
                 c['expiry'] = int(c['expiry'])
             driver.add_cookie(c)
+    for _type, values in data['storage'].items():
+        if values:
+            log.info('Loading {} {}Storage values'.format(len(values), _type))
+        for k, v in values.items():
+            driver.execute_script(
+                'window.{}Storage.setItem(arguments[0], arguments[1]);'.format(
+                    _type
+                ),
+                k, v
+            )
 
 
 def wait_for_element(driver, locator, timeout=5):
@@ -54,6 +74,11 @@ def remove_qs(url):
     return url.split('?')[0]
 
 
+def jitter(seconds, pct=20):
+    """This seems unnecessary"""
+    sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
+
+
 def get_element(driver, locator, **kwargs):
     wait_for_element(driver, locator, **kwargs)
     return driver.find_element(*locator)
@@ -61,7 +86,9 @@ def get_element(driver, locator, **kwargs):
 
 def navigate(driver, locator, **kwargs):
     log.info("Navigating via locator: {}".format(locator))
-    get_element(driver, locator, **kwargs).click()
+    elem = get_element(driver, locator, **kwargs)
+    jitter(.8)
+    elem.click()
 
 
 def is_logged_in(driver):
@@ -89,7 +116,7 @@ def wait_for_auth(driver, timeout_mins=10):
         elapsed = int((datetime.now() - t).total_seconds() / 60)
         if is_logged_in(driver):
             log.info('Logged in')
-            store_cookies(driver)
+            store_session_data(driver)
             break
         elif elapsed > timeout_mins:
             raise RuntimeError(
@@ -135,11 +162,11 @@ if __name__ == '__main__':
     driver.get(Config.BASE_URL)
 
     if args.force_login or not os.path.exists(Config.PKL_PATH):
-        # Login and capture Amazon cookie values...
+        # Login and capture Amazon session data...
         wait_for_auth(driver)
     else:
         # ...or load from storage
-        load_cookies(driver)
+        load_session_data(driver)
         driver.refresh()
         if is_logged_in(driver):
             log.info('Successfully logged in via stored cookie')
@@ -161,7 +188,7 @@ if __name__ == '__main__':
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
     while not slots_available(driver):
         log.info('No slots found :( waiting...')
-        sleep(uniform(20, 30))
+        jitter(25)
         driver.refresh()
         if slots_available(driver):
             alert('Delivery slots found')
