@@ -17,7 +17,7 @@ class Patterns:
 
 class Locators:
     LOGIN = (By.ID, 'nav-link-accountList')
-    GRID = (By.ID, 'ufss-widget-grid')
+    GRID = (By.CLASS_NAME, 'ufss-widget-grid')
     SLOTS = (By.CLASS_NAME, 'ufss-slotselect-container')
 
 

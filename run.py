@@ -2,6 +2,7 @@ import argparse
 import logging
 import pickle
 import os
+import re
 from time import sleep
 from random import uniform
 from datetime import datetime
@@ -154,9 +155,46 @@ def navigate_route(driver, route):
     log.info('Route complete')
 
 
+def get_slots(driver):
+    slot_container = get_element(driver, config.Locators.SLOTS)
+    slotselect_elems = slot_container.find_elements(
+        By.XPATH,
+        ".//div[contains(@class, 'ufss-slotselect ')]"
+    )
+    slots = {}
+    for cont in slotselect_elems:
+        id = cont.get_attribute('id')
+        slots[id] = {
+            'date_btn': driver.find_element(
+                By.XPATH,
+                "//button[@name='{}']".format(id)
+            ),
+            'slot_btns': cont.find_elements(
+                By.XPATH,
+                ".//button[contains(@class, 'ufss-slot-toggle-native-button')]"
+            )
+        }
+    return(slots)
+
+
 def slots_available(driver):
-    slots = get_element(driver, config.Locators.SLOTS)
-    return config.Patterns.NO_SLOTS not in slots.text
+    slots = get_slots(driver)
+    return any([len(v['slot_btns']) for v in slots.values()])
+
+
+def slots_text(slots):
+    text = []
+    for d in slots.values():
+        if not d['slot_btns']:
+            continue
+        text.append('\n' + d['date_btn'].text.replace('\n', ' - '))
+        for s in d['slot_btns']:
+            text.append(
+                re.sub(r'\n|\s\s+', ' - ',
+                       s.get_attribute('innerText').strip())
+            )
+    if text:
+        return '\n'.join(["Whole Foods delivery slots found!", *text])
 
 
 if __name__ == '__main__':
@@ -194,8 +232,10 @@ if __name__ == '__main__':
         driver.refresh()
         if slots_available(driver):
             alert('Delivery slots found')
-            send_sms(get_element(driver, config.Locators.SLOTS).text)
-            send_telegram(get_element(driver, config.Locators.SLOTS).text)
+            slots = get_slots(driver)
+            message_body = slots_text(slots)
+            send_sms(message_body)
+            send_telegram(message_body)
             break
     try:
         # Allow time to check out manually
