@@ -39,7 +39,7 @@ class Routes:
             ((By.XPATH, "//*[contains(@class, 'ufss-overview-continue-button')]"),
                 'gp/buy/payselect/handlers/display.html'),
             ((By.ID, 'continue-top'),
-                'gp/buy/spc/handlers/display.html')
+                'gp/buy/spc/handlers/display.html'),
             ((By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),
                 None)
         ]
