@@ -12,14 +12,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import chromedriver_binary
 
-from config import Config
+import config
 from notify import send_sms, send_telegram, alert, annoy
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def store_session_data(driver, path=Config.PKL_PATH):
+def store_session_data(driver, path=config.PKL_PATH):
     data = {
         'cookies': driver.get_cookies(),
         'storage': {
@@ -37,7 +37,7 @@ def store_session_data(driver, path=Config.PKL_PATH):
         log.warning('No session data found')
 
 
-def load_session_data(driver, path=Config.PKL_PATH):
+def load_session_data(driver, path=config.PKL_PATH):
     log.info('Reading session data from: ' + path)
     with open(path, 'rb') as file:
         data = pickle.load(file)
@@ -92,13 +92,13 @@ def navigate(driver, locator, **kwargs):
 
 
 def is_logged_in(driver):
-    if remove_qs(driver.current_url) == Config.BASE_URL:
+    if remove_qs(driver.current_url) == config.BASE_URL:
         try:
-            text = get_element(driver, Config.Locators.LOGIN).text
-            return Config.Patterns.NOT_LOGGED_IN not in text
+            text = get_element(driver, config.Locators.LOGIN).text
+            return config.Patterns.NOT_LOGGED_IN not in text
         except Exception:
             return False
-    elif remove_qs(driver.current_url) == Config.AUTH_URL:
+    elif remove_qs(driver.current_url) == config.AUTH_URL:
         return False
     else:
         # Lazily assume true if we are anywhere but BASE_URL and AUTH_URL
@@ -129,19 +129,19 @@ def wait_for_auth(driver, timeout_mins=10):
 
 
 def slots_available(driver):
-    slots = get_element(driver, Config.Locators.SLOTS)
-    return Config.Patterns.NO_SLOTS not in slots.text
+    slots = get_element(driver, config.Locators.SLOTS)
+    return config.Patterns.NO_SLOTS not in slots.text
 
 
 def navigate_to_slot_select(driver):
     log.info('Navigating to delivery slot selection')
-    if remove_qs(driver.current_url) != Config.BASE_URL:
+    if remove_qs(driver.current_url) != config.BASE_URL:
         log.info('Going home first')
-        driver.get(Config.BASE_URL)
+        driver.get(config.BASE_URL)
     navigate(driver, (By.ID, 'nav-cart'))
     navigate(driver, (
         By.XPATH,
-        "//*[contains(text(),'{}')]/..".format(Config.Patterns.WF_CHECKOUT)
+        "//*[contains(text(),'{}')]/..".format(config.Patterns.WF_CHECKOUT)
     ))
     navigate(driver, (
         By.XPATH,
@@ -153,15 +153,15 @@ def navigate_to_slot_select(driver):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="wf-deliverance")
     parser.add_argument('--force_login', '-f', action='store_true',
-                        help="Login and refresh session cookie if it exists")
+                        help="Login and refresh session data if it exists")
     args = parser.parse_args()
 
     log.info('Invoking Selenium Chrome webdriver')
     driver = webdriver.Chrome()
-    log.info('Navigating to ' + Config.BASE_URL)
-    driver.get(Config.BASE_URL)
+    log.info('Navigating to ' + config.BASE_URL)
+    driver.get(config.BASE_URL)
 
-    if args.force_login or not os.path.exists(Config.PKL_PATH):
+    if args.force_login or not os.path.exists(config.PKL_PATH):
         # Login and capture Amazon session data...
         wait_for_auth(driver)
     else:
@@ -169,14 +169,14 @@ if __name__ == '__main__':
         load_session_data(driver)
         driver.refresh()
         if is_logged_in(driver):
-            log.info('Successfully logged in via stored cookie')
+            log.info('Successfully logged in via stored session data')
         else:
-            log.error('Error logging in with stored cookie')
+            log.error('Error logging in with stored session data')
             wait_for_auth(driver)
     try:
         navigate_to_slot_select(driver)
     except TimeoutException:
-        if remove_qs(driver.current_url) in [Config.BASE_URL, Config.AUTH_URL]:
+        if remove_qs(driver.current_url) in [config.BASE_URL, config.AUTH_URL]:
             wait_for_auth(driver)
             navigate_to_slot_select(driver)
         else:
@@ -192,8 +192,8 @@ if __name__ == '__main__':
         driver.refresh()
         if slots_available(driver):
             alert('Delivery slots found')
-            send_sms(get_element(driver, Config.Locators.SLOTS).text)
-            send_telegram(get_element(driver, Config.Locators.SLOTS).text)
+            send_sms(get_element(driver, config.Locators.SLOTS).text)
+            send_telegram(get_element(driver, config.Locators.SLOTS).text)
             break
     try:
         # Allow time to check out manually
