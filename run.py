@@ -65,16 +65,6 @@ def load_session_data(driver, path=config.PKL_PATH):
             )
 
 
-def wait_for_element(driver, locator, timeout=5):
-    try:
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located(locator)
-        )
-    except TimeoutException:
-        log.error("Timed out waiting for target element: {}".format(locator))
-        raise
-
-
 def remove_qs(url):
     """Remove URL query string the lazy way"""
     return url.split('?')[0]
@@ -85,8 +75,14 @@ def jitter(seconds, pct=20):
     sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
 
 
-def get_element(driver, locator, **kwargs):
-    wait_for_element(driver, locator, **kwargs)
+def get_element(driver, locator, timeout=5):
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(locator)
+        )
+    except TimeoutException:
+        log.error("Timed out waiting for target element: {}".format(locator))
+        raise
     return driver.find_element(*locator)
 
 
@@ -127,11 +123,17 @@ def wait_for_auth(driver, timeout_mins=10):
         sleep(1)
 
 
-def navigate(driver, locator, dest, **kwargs):
+def navigate(driver, locator, dest, timeout=5):
     log.info("Navigating via locator: {}".format(locator))
-    elem = get_element(driver, locator, **kwargs)
+    elem = get_element(driver, locator, timeout=timeout)
     jitter(.8)
     elem.click()
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.staleness_of(elem)
+        )
+    except TimeoutException:
+        pass
     if remove_qs(driver.current_url) == config.BASE_URL + dest:
         log.info("Navigated to '{}'".format(dest))
     else:
