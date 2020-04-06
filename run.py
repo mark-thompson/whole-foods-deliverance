@@ -1,10 +1,7 @@
 import argparse
 import logging
-import pickle
 import os
-import re
 from time import sleep
-from random import uniform
 from datetime import datetime
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -14,6 +11,7 @@ from selenium.webdriver.common.by import By
 import chromedriver_binary
 
 import config
+import utils
 from notify import send_sms, send_telegram, alert, annoy
 
 log = logging.getLogger(__name__)
@@ -23,56 +21,6 @@ logging.basicConfig(level=logging.INFO)
 class NavigationException(WebDriverException):
     """Thrown when a navigation action does not reach target destination"""
     pass
-
-
-def store_session_data(driver, path=config.PKL_PATH):
-    data = {
-        'cookies': driver.get_cookies(),
-        'storage': {
-            k: driver.execute_script(
-                'for(var k,s=window.{}Storage,d={{}},i=0;i<s.length;++i)'
-                'd[k=s.key(i)]=s.getItem(k);return d'.format(k)
-            ) for k in ['local', 'session']
-        }
-    }
-    if any(data.values()):
-        log.info('Writing session data to: ' + path)
-        with open(path, 'wb') as file:
-            pickle.dump(data, file)
-    else:
-        log.warning('No session data found')
-
-
-def load_session_data(driver, path=config.PKL_PATH):
-    log.info('Reading session data from: ' + path)
-    with open(path, 'rb') as file:
-        data = pickle.load(file)
-    if data.get('cookies'):
-        log.info('Loading {} cookie values'.format(len(data['cookies'])))
-        for c in data['cookies']:
-            if c.get('expiry'):
-                c['expiry'] = int(c['expiry'])
-            driver.add_cookie(c)
-    for _type, values in data['storage'].items():
-        if values:
-            log.info('Loading {} {}Storage values'.format(len(values), _type))
-        for k, v in values.items():
-            driver.execute_script(
-                'window.{}Storage.setItem(arguments[0], arguments[1]);'.format(
-                    _type
-                ),
-                k, v
-            )
-
-
-def remove_qs(url):
-    """Remove URL query string the lazy way"""
-    return url.split('?')[0]
-
-
-def jitter(seconds, pct=20):
-    """This seems unnecessary"""
-    sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
 
 
 def get_element(driver, locator, timeout=5):
@@ -87,13 +35,14 @@ def get_element(driver, locator, timeout=5):
 
 
 def is_logged_in(driver):
-    if remove_qs(driver.current_url) == config.BASE_URL:
+    if utils.remove_qs(driver.current_url) == config.BASE_URL:
         try:
             text = get_element(driver, config.Locators.LOGIN).text
             return config.Patterns.NOT_LOGGED_IN not in text
         except Exception:
             return False
-    elif remove_qs(driver.current_url) == config.AUTH_URL:
+    elif (utils.remove_qs(driver.current_url) == config.AUTH_URL
+          or config.BASE_URL+'ap/cvf' in driver.current_url):
         return False
     else:
         # Lazily assume true if we are anywhere but BASE_URL and AUTH_URL
@@ -110,8 +59,6 @@ def wait_for_auth(driver, timeout_mins=10):
     while not is_logged_in(driver):
         elapsed = int((datetime.now() - t).total_seconds() / 60)
         if is_logged_in(driver):
-            log.info('Logged in')
-            store_session_data(driver)
             break
         elif elapsed > timeout_mins:
             raise RuntimeError(
@@ -121,12 +68,14 @@ def wait_for_auth(driver, timeout_mins=10):
             alerted.append(elapsed)
             alert('Log in to continue')
         sleep(1)
+    log.info('Logged in')
+    utils.store_session_data(driver)
 
 
 def navigate(driver, locator, dest, timeout=5):
     log.info("Navigating via locator: {}".format(locator))
     elem = get_element(driver, locator, timeout=timeout)
-    jitter(.8)
+    utils.jitter(.8)
     elem.click()
     try:
         WebDriverWait(driver, timeout).until(
@@ -134,15 +83,17 @@ def navigate(driver, locator, dest, timeout=5):
         )
     except TimeoutException:
         pass
-    if remove_qs(driver.current_url) == config.BASE_URL + dest:
+    if utils.remove_qs(driver.current_url) == config.BASE_URL + dest:
         log.info("Navigated to '{}'".format(dest))
     else:
-        raise NavigationException("Navigation to '{}' failed".format(dest))
+        raise NavigationException(
+            "Navigation to '{}' failed".format(dest)
+        )
 
 
 def navigate_route(driver, route):
     route_start = route.pop(0)
-    if remove_qs(driver.current_url) != route_start:
+    if utils.remove_qs(driver.current_url) != route_start:
         log.info('Navigating to route start: {}'.format(route_start))
         driver.get(route_start)
     log.info('Navigating route with {} stops'.format(len(route)))
@@ -150,7 +101,7 @@ def navigate_route(driver, route):
         try:
             navigate(driver, t[0], t[1])
         except NavigationException:
-            if remove_qs(driver.current_url) == config.AUTH_URL:
+            if utils.remove_qs(driver.current_url) == config.AUTH_URL:
                 log.error('Handling login redirect')
                 wait_for_auth(driver)
             else:
@@ -181,23 +132,7 @@ def get_slots(driver):
 
 
 def slots_available(driver):
-    slots = get_slots(driver)
-    return any([len(v['slot_btns']) for v in slots.values()])
-
-
-def slots_text(slots):
-    text = []
-    for d in slots.values():
-        if not d['slot_btns']:
-            continue
-        text.append('\n' + d['date_btn'].text.replace('\n', ' - '))
-        for s in d['slot_btns']:
-            text.append(
-                re.sub(r'\n|\s\s+', ' - ',
-                       s.get_attribute('innerText').strip())
-            )
-    if text:
-        return '\n'.join(["Whole Foods delivery slots found!", *text])
+    return any([len(v['slot_btns']) for v in get_slots(driver).values()])
 
 
 if __name__ == '__main__':
@@ -216,7 +151,7 @@ if __name__ == '__main__':
         wait_for_auth(driver)
     else:
         # ...or load from storage
-        load_session_data(driver)
+        utils.load_session_data(driver)
         driver.refresh()
         if is_logged_in(driver):
             log.info('Successfully logged in via stored session data')
@@ -231,12 +166,12 @@ if __name__ == '__main__':
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
     while not slots_available(driver):
         log.info('No slots found :( waiting...')
-        jitter(25)
+        utils.jitter(25)
         driver.refresh()
         if slots_available(driver):
             alert('Delivery slots found')
             slots = get_slots(driver)
-            message_body = slots_text(slots)
+            message_body = utils.generate_message(slots)
             send_sms(message_body)
             send_telegram(message_body)
             break
