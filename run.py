@@ -69,7 +69,7 @@ def wait_for_auth(driver, timeout_mins=10):
     utils.store_session_data(driver)
 
 
-def navigate(driver, locator, dest, timeout=5):
+def navigate(driver, locator, dest, timeout=10):
     log.info("Navigating via locator: {}".format(locator))
     elem = get_element(driver, locator, timeout=timeout)
     utils.jitter(.8)
@@ -107,10 +107,9 @@ def navigate_route(driver, route):
 
 
 def get_slots(driver):
-    slot_container = get_element(driver, config.Locators.SLOTS)
+    slot_container = get_element(driver, config.Locators.SLOT_CONTAINER)
     slotselect_elems = slot_container.find_elements(
-        By.XPATH,
-        ".//div[contains(@class, 'ufss-slotselect ')]"
+        *config.Locators.SLOT_SELECT
     )
     slots = []
     for cont in slotselect_elems:
@@ -119,10 +118,7 @@ def get_slots(driver):
             By.XPATH,
             "//button[@name='{}']".format(id)
         )
-        for slot in cont.find_elements(
-            By.XPATH,
-            ".//*[contains(@class, 'ufss-slot  ufss-available')]"
-        ):
+        for slot in cont.find_elements(*config.Locators.SLOT):
             slots.append(SlotElement(slot, date_elem))
     return(slots)
 
@@ -135,6 +131,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="wf-deliverance")
     parser.add_argument('--force_login', '-f', action='store_true',
                         help="Login and refresh session data if it exists")
+    parser.add_argument('--checkout', '-c', action='store_true',
+                        help="Select first available slot and checkout")
     args = parser.parse_args()
 
     log.info('Invoking Selenium Chrome webdriver')
@@ -171,10 +169,19 @@ if __name__ == '__main__':
             send_sms(message_body)
             send_telegram(message_body)
             break
-    try:
-        # Allow time to check out manually
-        sleep(900)
-    except KeyboardInterrupt:
-        log.warning('Slumber disturbed')
+    if args.checkout:
+        log.info('Attempting to select slot and checkout')
+        slots = get_slots(driver)
+        log.info('Selecting slot: ' + slots[0].full_name)
+        slots[0].select(driver)
+        navigate_route(driver, config.Routes.WholeFoods.CHECKOUT)
+        alert('Checkout complete', 'Hero')
+        sleep(60)
+    else:
+        try:
+            # Allow time to check out manually
+            sleep(900)
+        except KeyboardInterrupt:
+            log.warning('Slumber disturbed')
     log.info('Closing webdriver')
     driver.close()
