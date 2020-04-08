@@ -4,44 +4,63 @@ from selenium.webdriver.common.by import By
 CONF_PATH = 'conf.toml'
 PKL_PATH = '.session_storage.pkl'
 BASE_URL = 'https://www.amazon.com/'
-SLOT_URL = BASE_URL + 'gp/buy/shipoptionselect/handlers/display.html'
 AUTH_URL = BASE_URL + 'ap/signin'
 
-
-class Patterns:
-    NOT_LOGGED_IN = "Hello, Sign in"
-    UNAVAILABLE = "We're sorry we are unable to fulfill your entire order."
-    NO_SLOTS = "No delivery windows available."
-    WF_CHECKOUT = "Checkout Whole Foods"
+NOT_LOGGED_IN_PATTERN = "Hello, Sign in"
+LOGIN_LOCATOR = (By.ID, 'nav-link-accountList')
 
 
-class Locators:
-    LOGIN = (By.ID, 'nav-link-accountList')
-    GRID = (By.CLASS_NAME, 'ufss-widget-grid')
-    SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
-    SLOT_SELECT = (By.XPATH, ".//div[contains(@class, 'ufss-slotselect ')]")
-    SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot  ufss-available')]")
+from nav import Route, Waypoint  # noqa
 
 
-class Routes:
-    class WholeFoods:
-        SLOT_SELECT = [
+class WholeFoods:
+
+    class Patterns:
+        UNAVAILABLE = "We're sorry we are unable to fulfill your entire order."
+        NO_SLOTS = "No delivery windows available."
+        WF_CHECKOUT = "Checkout Whole Foods"
+
+    class Locators:
+        GRID = (By.CLASS_NAME, 'ufss-widget-grid')
+        SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
+        SLOT_SELECT = (By.XPATH, ".//div[contains(@class, 'ufss-slotselect ')]")
+        SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot  ufss-available')]")
+
+    class Routes:
+        SLOT_SELECT = Route(
             BASE_URL,
-            ((By.ID, 'nav-cart'),
-                'gp/cart/view.html'),
-            ((By.XPATH, "//*[contains(text(),'Checkout Whole Foods')]/.."),
-                'alm/byg'),
-            ((By.XPATH, "//span[contains(@class, 'byg-continue-button')]"),
-                'alm/substitution'),
-            ((By.ID, 'subsContinueButton'),
-                'gp/buy/shipoptionselect/handlers/display.html')
-        ]
-        CHECKOUT = [
-            SLOT_URL,
-            ((By.XPATH, "//*[contains(@class, 'ufss-overview-continue-button')]"),
-                'gp/buy/payselect/handlers/display.html'),
-            ((By.ID, 'continue-top'),
-                'gp/buy/spc/handlers/display.html'),
-            ((By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),
-                None)
-        ]
+            Waypoint(
+                (By.ID, 'nav-cart'),
+                'gp/cart/view.html'
+            ),
+            Waypoint(
+                (By.XPATH, "//*[contains(text(),'Checkout Whole Foods')]/.."),
+                'alm/byg'
+            ),
+            Waypoint(
+                (By.XPATH, "//span[contains(@class, 'byg-continue-button')]"),
+                'alm/substitution',
+                optional=True
+            ),
+            Waypoint(
+                (By.ID, 'subsContinueButton'),
+                'gp/buy/shipoptionselect/handlers/display.html'
+            )
+        )
+
+        CHECKOUT = Route(
+            BASE_URL + 'gp/buy/shipoptionselect/handlers/display.html',
+            Waypoint(
+                (By.XPATH, "//*[contains(@class, 'ufss-overview-continue-button')]"),
+                'gp/buy/payselect/handlers/display.html'
+            ),
+            Waypoint(
+                (By.ID, 'continue-top'),
+                'gp/buy/spc/handlers/display.html',
+                optional=True
+            ),
+            Waypoint(
+                (By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),
+                'gp/buy/thankyou/handlers/display.html'
+            )
+        )

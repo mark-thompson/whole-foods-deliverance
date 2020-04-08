@@ -5,7 +5,7 @@ import os
 from random import random
 from twilio.rest import Client as TwilioClient
 
-import config
+from config import CONF_PATH
 
 log = logging.getLogger(__name__)
 
@@ -15,11 +15,11 @@ def conf_dependent(conf_key):
         def wrapper(*args, **kwargs):
             if 'conf' not in kwargs:
                 try:
-                    kwargs['conf'] = toml.load(config.CONF_PATH)[conf_key]
+                    kwargs['conf'] = toml.load(CONF_PATH)[conf_key]
                 except Exception:
                     log.error("{}() requires a config file at"
                               " '{}' with key '{}'".format(func.__name__,
-                                                           config.CONF_PATH,
+                                                           CONF_PATH,
                                                            conf_key))
                     return
             try:

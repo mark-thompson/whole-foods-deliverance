@@ -1,38 +1,12 @@
 import logging
-from time import sleep
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import ElementClickInterceptedException
+
+from utils import click_when_enabled
 
 log = logging.getLogger(__name__)
 
 
 def get_element_text(element):
     return element.get_attribute('innerText')
-
-
-class element_clickable:
-    def __init__(self, element):
-        self.element = element
-
-    def __call__(self, driver):
-        if self.element.is_displayed() and self.element.is_enabled():
-            return self.element
-        else:
-            return False
-
-
-def click_when_enabled(driver, element, timeout=10):
-    element = WebDriverWait(driver, timeout).until(
-        element_clickable(element)
-    )
-    try:
-        driver.execute_script("arguments[0].scrollIntoView();", element)
-        element.click()
-    except ElementClickInterceptedException:
-        delay = 1
-        log.warning('Click intercepted. Waiting for {}s'.format(delay))
-        sleep(delay)
-        element.click()
 
 
 class WebElement:

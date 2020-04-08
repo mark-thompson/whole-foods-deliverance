@@ -2,8 +2,15 @@ import logging
 import pickle
 from time import sleep
 from random import uniform
+from datetime import datetime
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        TimeoutException)
 
-import config
+from config import (PKL_PATH, BASE_URL, AUTH_URL, LOGIN_LOCATOR,
+                    NOT_LOGGED_IN_PATTERN)
+from notify import alert
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +25,53 @@ def jitter(seconds, pct=20):
     sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
 
 
-def store_session_data(driver, path=config.PKL_PATH):
+###########
+# Elements
+#########
+
+class element_clickable:
+    """An expected condition for use with WebDriverWait"""
+
+    def __init__(self, element):
+        self.element = element
+
+    def __call__(self, driver):
+        if self.element.is_displayed() and self.element.is_enabled():
+            return self.element
+        else:
+            return False
+
+
+def get_element(driver, locator, timeout=5):
+    try:
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(locator)
+        )
+    except TimeoutException:
+        log.error("Timed out waiting for target element: {}".format(locator))
+        raise
+    return driver.find_element(*locator)
+
+
+def click_when_enabled(driver, element, timeout=10):
+    element = WebDriverWait(driver, timeout).until(
+        element_clickable(element)
+    )
+    try:
+        driver.execute_script("arguments[0].scrollIntoView();", element)
+        element.click()
+    except ElementClickInterceptedException:
+        delay = 1
+        log.warning('Click intercepted. Waiting for {}s'.format(delay))
+        sleep(delay)
+        element.click()
+
+#######
+# Auth
+######
+
+
+def store_session_data(driver, path=PKL_PATH):
     data = {
         'cookies': driver.get_cookies(),
         'storage': {
@@ -36,7 +89,7 @@ def store_session_data(driver, path=config.PKL_PATH):
         log.warning('No session data found')
 
 
-def load_session_data(driver, path=config.PKL_PATH):
+def load_session_data(driver, path=PKL_PATH):
     log.info('Reading session data from: ' + path)
     with open(path, 'rb') as file:
         data = pickle.load(file)
@@ -58,12 +111,39 @@ def load_session_data(driver, path=config.PKL_PATH):
             )
 
 
-def generate_message(slots):
-    text = []
-    for slot in slots:
-        date = str(slot._date_element)
-        if date not in text:
-            text.extend(['', date])
-        text.append(str(slot))
-    if text:
-        return '\n'.join(["Whole Foods delivery slots found!", *text])
+def is_logged_in(driver):
+    if remove_qs(driver.current_url) == BASE_URL:
+        try:
+            text = get_element(driver, LOGIN_LOCATOR).text
+            return NOT_LOGGED_IN_PATTERN not in text
+        except Exception:
+            return False
+    elif (remove_qs(driver.current_url) == AUTH_URL
+          or BASE_URL+'ap/cvf' in driver.current_url):
+        return False
+    else:
+        # Lazily assume true if we are anywhere but BASE_URL and AUTH_URL
+        return True
+
+
+def wait_for_auth(driver, timeout_mins=10):
+    t = datetime.now()
+    alerted = []
+    if is_logged_in(driver):
+        log.debug('Already logged in')
+        return
+    log.info('Waiting for user login...')
+    while not is_logged_in(driver):
+        elapsed = int((datetime.now() - t).total_seconds() / 60)
+        if is_logged_in(driver):
+            break
+        elif elapsed > timeout_mins:
+            raise RuntimeError(
+                'Timed out waiting for login (>= {}min)'.format(timeout_mins)
+            )
+        elif elapsed not in alerted:
+            alerted.append(elapsed)
+            alert('Log in to proceed')
+        sleep(1)
+    log.info('Logged in')
+    store_session_data(driver)
