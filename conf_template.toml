@@ -7,3 +7,18 @@ to_num = "number to text (e.g. +12025551234)"
 [telegram]
 token = ""
 chat_id = ""
+
+# Use this section to specify your desired delivery windows
+# > Lines beginning with '#' are considered comments and ignored
+# > Days without slot preferences will be ignored
+[slot_preference]
+today = [
+  "Any",
+  # "1:00 PM - 3:00 PM",
+  # "3:00 PM - 5:00 PM"
+]
+tomorrow = [
+  "Any",
+  # "3:00 PM - 5:00 PM",
+  # "11:00 AM - 1:00 PM"
+]

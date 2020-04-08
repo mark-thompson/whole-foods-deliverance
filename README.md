@@ -6,6 +6,8 @@ Born out of frustration with the perennially unavailable Whole Foods delivery sl
 
 When a slot is found, a friendly voice emanates from your speakers informing you of your good fortune.
 
+If called with the `--checkout` flag, the program will also attempt to select a slot for you and checkout automatically.
+
 Optionally, you can choose to be notified via SMS (Twilio) and/or Telegram by supplying API credentials in `conf.toml`.
 
 More on these services here:
@@ -57,7 +59,12 @@ python run.py
 ```
 
 On first run, you will be prompted to login. Subsequent runs will attempt to use a stored session cookie.
-Run with the `-f` flag to force login and refresh the stored cookie.
+Run with the `-f` or `--force_login` flag to force login and refresh the stored cookie.
 ```
 python run.py -f
+```
+
+Run with the `-c` or `--checkout` flag to attempt to checkout when a slot is found. Uses your delivery window preferences as specified in `conf.toml` under the `slot_preference` key. _(See `conf_template.toml`)_
+```
+python run.py -c
 ```

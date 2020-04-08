@@ -8,7 +8,7 @@ import chromedriver_binary
 
 import config
 from slots import SlotElement
-from notify import send_sms, send_telegram, alert, annoy
+from notify import send_sms, send_telegram, alert, annoy, conf_dependent
 from utils import (get_element, is_logged_in, wait_for_auth, jitter,
                    load_session_data)
 
@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def get_slots(driver, site_config):
+    log.info('Checking for available slots')
     slot_container = get_element(driver, site_config.Locators.SLOT_CONTAINER)
     slotselect_elems = slot_container.find_elements(
         *site_config.Locators.SLOT_SELECT
@@ -30,23 +31,62 @@ def get_slots(driver, site_config):
         )
         for slot in cont.find_elements(*site_config.Locators.SLOT):
             slots.append(SlotElement(slot, date_elem))
+    if slots:
+        log.info('Found {} slots'.format(len(slots)))
     return(slots)
 
 
-def slots_available(driver, site_config):
-    return len(get_slots(driver, site_config))
+def clean_slotname(slot_or_str):
+    if isinstance(slot_or_str, SlotElement):
+        name = slot_or_str.full_name
+    else:
+        name = slot_or_str
+    return name.lower().replace(' ', '')
 
 
-def generate_message(slots, desired_slot=None):
+@conf_dependent('slot_preference')
+def get_prefs_from_conf(conf):
+    log.info("Creating prefs from conf dict: {}".format(conf))
+    prefs = []
+    for day, windows in conf.items():
+        for window in windows:
+            if window.lower() == 'any':
+                prefs.append(day.lower())
+            else:
+                prefs.append(clean_slotname('::'.join([day, window])))
+    return(prefs)
+
+
+def slots_available(driver, site_config, prefs):
+    slots = get_slots(driver, site_config)
+    preferred_slots = []
+    if slots and prefs:
+        log.info('Comparing available slots to prefs')
+        for cmp in prefs:
+            preferred_slots.extend(
+                [s for s in slots if clean_slotname(s).startswith(cmp)]
+            )
+        if preferred_slots:
+            log.info('Found {} preferred slots: {}'.format(
+                len(preferred_slots),
+                '\n'+'\n'.join([p.full_name for p in preferred_slots])
+            ))
+        return preferred_slots
+    else:
+        return slots
+
+
+def generate_message(slots, checkout):
     text = []
     for slot in slots:
         date = str(slot._date_element)
         if date not in text:
             text.extend(['', date])
         text.append(str(slot))
-    if desired_slot:
-        text.extend(['Will attempt to checkout using slot:',
-                     desired_slot.full_name])
+    if checkout:
+        text.extend(
+            ['', 'Will attempt to checkout using slot:', slots[0].full_name]
+        )
     if text:
         return '\n'.join(["Whole Foods delivery slots found!", *text])
 
@@ -59,6 +99,8 @@ if __name__ == '__main__':
                         help="Select first available slot and checkout")
     args = parser.parse_args()
 
+    log.info('Reading slot preferences from conf')
+    slot_prefs = get_prefs_from_conf()
     log.info('Invoking Selenium Chrome webdriver')
     driver = webdriver.Chrome()
     log.info('Navigating to ' + config.BASE_URL)
@@ -81,25 +123,23 @@ if __name__ == '__main__':
     # Navigate from BASE_URL to SLOT_URL
     site_config.Routes.SLOT_SELECT.navigate(driver)
     # Check for delivery slots
-    if slots_available(driver, site_config):
+    slots = slots_available(driver, site_config, slot_prefs)
+    if slots:
         annoy()
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
-    while not slots_available(driver, site_config):
+    while not slots:
         log.info('No slots found :( waiting...')
         jitter(25)
         driver.refresh()
-        if slots_available(driver, site_config):
+        slots = slots_available(driver, site_config, slot_prefs)
+        if slots:
             alert('Delivery slots found')
-            slots = get_slots(driver, site_config)
-            if args.checkout:
-                desired_slot = slots[0]
-            message_body = generate_message(slots, desired_slot)
+            message_body = generate_message(slots, args.checkout)
             send_sms(message_body)
             send_telegram(message_body)
             break
     if args.checkout:
         log.info('Attempting to select slot and checkout')
-        slots = get_slots(driver, site_config)
         log.info('Selecting slot: ' + slots[0].full_name)
         slots[0].select(driver)
         site_config.Routes.CHECKOUT.navigate(driver)
