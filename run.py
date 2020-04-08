@@ -4,7 +4,7 @@ import os
 from time import sleep
 from datetime import datetime
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -12,15 +12,12 @@ import chromedriver_binary
 
 import config
 import utils
+from slots import SlotElement
+from nav import NavigationException
 from notify import send_sms, send_telegram, alert, annoy
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-
-class NavigationException(WebDriverException):
-    """Thrown when a navigation action does not reach target destination"""
-    pass
 
 
 def get_element(driver, locator, timeout=5):
@@ -115,24 +112,23 @@ def get_slots(driver):
         By.XPATH,
         ".//div[contains(@class, 'ufss-slotselect ')]"
     )
-    slots = {}
+    slots = []
     for cont in slotselect_elems:
         id = cont.get_attribute('id')
-        slots[id] = {
-            'date_btn': driver.find_element(
-                By.XPATH,
-                "//button[@name='{}']".format(id)
-            ),
-            'slot_btns': cont.find_elements(
-                By.XPATH,
-                ".//button[contains(@class, 'ufss-slot-toggle-native-button')]"
-            )
-        }
+        date_elem = driver.find_element(
+            By.XPATH,
+            "//button[@name='{}']".format(id)
+        )
+        for slot in cont.find_elements(
+            By.XPATH,
+            ".//*[contains(@class, 'ufss-slot  ufss-available')]"
+        ):
+            slots.append(SlotElement(slot, date_elem))
     return(slots)
 
 
 def slots_available(driver):
-    return any([len(v['slot_btns']) for v in get_slots(driver).values()])
+    return len(get_slots(driver))
 
 
 if __name__ == '__main__':

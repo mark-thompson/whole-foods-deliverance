@@ -1,6 +1,5 @@
 import logging
 import pickle
-import re
 from time import sleep
 from random import uniform
 
@@ -61,14 +60,10 @@ def load_session_data(driver, path=config.PKL_PATH):
 
 def generate_message(slots):
     text = []
-    for d in slots.values():
-        if not d['slot_btns']:
-            continue
-        text.append('\n' + d['date_btn'].text.replace('\n', ' - '))
-        for s in d['slot_btns']:
-            text.append(
-                re.sub(r'\n|\s\s+', ' - ',
-                       s.get_attribute('innerText').strip())
-            )
+    for slot in slots:
+        date = str(slot._date_element)
+        if date not in text:
+            text.extend(['', date])
+        text.append(str(slot))
     if text:
         return '\n'.join(["Whole Foods delivery slots found!", *text])
