@@ -68,3 +68,6 @@ Run with the `-c` or `--checkout` flag to attempt to checkout when a slot is fou
 ```
 python run.py -c
 ```
+
+
+*Inspiration credit: [this much more interestingly named project](https://github.com/johntitus/bungholio)*
