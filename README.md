@@ -16,13 +16,13 @@ More on these services here:
 
 
 ## Requirements
-- A mac (the audio alerts are mac-specific; the other bits may work on PC. YMMV)
+- A computer (the audio alerts are Mac-specific; all other functionality works on Windows)
 - Python3.x (tested on 3.7) and Google Chrome (sorry)
 - An Amazon Whole Foods cart populated with items
 - Patience
 
 ## Installation
-- Open the terminal
+- Open Terminal (or Powershell if on Windows)
 - Clone this repo (or download and unpack manually):
   ```
   git clone https://github.com/mark-thompson/whole-foods-deliverance.git
@@ -31,15 +31,24 @@ More on these services here:
   ```
   cd ./whole-foods-deliverance
   ```
-- Create and activate the environment:
+- Create the python virtual environment:
   ```
-  python3 -m venv env && . env/bin/activate
+  python3 -m venv env
   ```
-- Install the requirements:
+- Activate the environment (you'll need to do this again for every new terminal session):
+  - Mac:
+    ```
+    . env/bin/activate
+    ```
+  - Windows:
+    ```
+    . env/Scripts/activate
+    ```
+- Install the requirements (you only need to do this once):
   ```
   pip install -r requirements.txt
   ```
-**Optional**
+**Optional:** *(Do this if you want to send SMS/Telegram notifications or specify delivery slot preferences)*
 - Copy the config template to the default deployment location:
   ```
   cp conf_template.toml conf.toml
@@ -47,7 +56,7 @@ More on these services here:
   Open the new file `conf.toml` with your favorite text editor and insert your API credentials
 
 **Note:**
-The default requirements assume you are using the current stable version of Chrome on mac (version 80).
+The default requirements assume you are using the current stable version of Chrome (version 80).
 If you are using a beta or dev release (version 81+) and you get an error when running the script, run
 ```
 pip install --upgrade chromedriver-binary
