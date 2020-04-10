@@ -32,7 +32,9 @@ def get_slots(driver, site_config):
         for slot in cont.find_elements(*site_config.Locators.SLOT):
             slots.append(SlotElement(slot, date_elem))
     if slots:
-        log.info('Found {} slots'.format(len(slots)))
+        log.info('Found {} slots: \n{}'.format(
+            len(slots), '\n'.join([s.full_name for s in slots])
+        ))
     return(slots)
 
 
