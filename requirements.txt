@@ -1,6 +1,6 @@
 certifi==2019.11.28
 chardet==3.0.4
-chromedriver-binary==80.0.3987.106.0
+chromedriver-binary==81.0.4044.69.0
 idna==2.9
 PyJWT==1.7.1
 pytz==2019.3

@@ -56,10 +56,15 @@ More on these services here:
   Open the new file `conf.toml` with your favorite text editor and insert your API credentials
 
 **Note:**
-The default requirements assume you are using the current stable version of Chrome (version 80).
-If you are using a beta or dev release (version 81+) and you get an error when running the script, run
+The default requirements assume you are using the current stable version of Chrome (version 81).
+If you are using a beta or dev release (version 82+) and you get an error when running the script, run
 ```
 pip install --upgrade chromedriver-binary
+```
+
+If you are still using Chrome version 80, run:
+```
+pip install --upgrade chromedriver-binary==80.0.3987.106.0
 ```
 
 ## Usage
