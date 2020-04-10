@@ -61,11 +61,11 @@ class Route:
             driver.get(self.route_start)
         for waypoint in self.waypoints:
             try:
-                self.navigate_waypoint(driver, waypoint, timeout)
                 valid_dest = [
                     waypnt.dest for waypnt in
                     self.waypoints[self.waypoints.index(waypoint)+1:]
                 ]
+                self.navigate_waypoint(driver, waypoint, timeout)
             except NavigationException as e:
                 if remove_qs(driver.current_url) == AUTH_URL:
                     log.error('Handling login redirect')
