@@ -66,7 +66,7 @@ class Route:
                     waypnt.dest for waypnt in
                     self.waypoints[self.waypoints.index(waypoint)+1:]
                 ]
-            except NavigationException:
+            except NavigationException as e:
                 if remove_qs(driver.current_url) == AUTH_URL:
                     log.error('Handling login redirect')
                     wait_for_auth(driver)
@@ -75,5 +75,17 @@ class Route:
                         remove_qs(driver.current_url)
                     ))
                 else:
-                    raise
+                    log.warning(
+                        "Current URL '{}' does not match target\n"
+                        "Handling possible redirect (timeout in {}s)".format(
+                            remove_qs(driver.current_url), timeout
+                        )
+                    )
+                    try:
+                        WebDriverWait(driver, timeout).until(
+                            EC.url_contains(waypoint.dest)
+                        )
+                        log.info("Made it to '{}'".format(waypoint.dest))
+                    except TimeoutException:
+                        raise e
         log.info('Route complete')
