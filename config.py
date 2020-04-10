@@ -15,13 +15,7 @@ from nav import Route, Waypoint  # noqa
 
 class WholeFoods:
 
-    class Patterns:
-        UNAVAILABLE = "We're sorry we are unable to fulfill your entire order."
-        NO_SLOTS = "No delivery windows available."
-        WF_CHECKOUT = "Checkout Whole Foods"
-
     class Locators:
-        GRID = (By.CLASS_NAME, 'ufss-widget-grid')
         SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
         SLOT_SELECT = (By.XPATH, ".//div[contains(@class, 'ufss-slotselect ')]")
         SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot  ufss-available')]")
