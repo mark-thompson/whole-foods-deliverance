@@ -3,7 +3,7 @@ from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import BASE_URL, AUTH_URL
+from config import BASE_URL, Patterns
 from utils import get_element, jitter, remove_qs, wait_for_auth
 
 log = logging.getLogger(__name__)
@@ -78,8 +78,8 @@ class Route:
                     self.navigate_waypoint(driver, waypoint, timeout)
             except NavigationException as e:
                 current = remove_qs(driver.current_url)
-                if current == AUTH_URL:
-                    log.error('Handling login redirect')
+                if Patterns.AUTH in current:
+                    log.warning('Handling login redirect')
                     wait_for_auth(driver)
                 elif any(d in current for d in valid_dest):
                     log.warning("Navigated to valid dest '{}'".format(current))
