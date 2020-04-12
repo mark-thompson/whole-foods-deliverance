@@ -4,16 +4,17 @@ import os
 from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException
 import chromedriver_binary
 
 import config
 from slots import SlotElement
+from nav import RouteRedirectException
 from notify import send_sms, send_telegram, alert, annoy, conf_dependent
 from utils import (get_element, is_logged_in, wait_for_auth, jitter,
-                   load_session_data)
+                   load_session_data, dump_source)
 
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 def get_slots(driver, site_config):
@@ -93,18 +94,9 @@ def generate_message(slots, checkout):
         return '\n'.join(["Whole Foods delivery slots found!", *text])
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="wf-deliverance")
-    parser.add_argument('--force_login', '-f', action='store_true',
-                        help="Login and refresh session data if it exists")
-    parser.add_argument('--checkout', '-c', action='store_true',
-                        help="Select first available slot and checkout")
-    args = parser.parse_args()
-
+def main_loop(driver, args):
     log.info('Reading slot preferences from conf')
     slot_prefs = get_prefs_from_conf()
-    log.info('Invoking Selenium Chrome webdriver')
-    driver = webdriver.Chrome()
     log.info('Navigating to ' + config.BASE_URL)
     driver.get(config.BASE_URL)
 
@@ -122,9 +114,8 @@ if __name__ == '__main__':
             wait_for_auth(driver)
     # v-- Change this dynamically when more site configs exist
     site_config = config.WholeFoods
-    # Navigate from BASE_URL to SLOT_URL
+    # Navigate to slot select
     site_config.Routes.SLOT_SELECT.navigate(driver)
-    # Check for delivery slots
     slots = slots_available(driver, site_config, slot_prefs)
     if slots:
         annoy()
@@ -139,19 +130,51 @@ if __name__ == '__main__':
             message_body = generate_message(slots, args.checkout)
             send_sms(message_body)
             send_telegram(message_body)
-            break
-    if args.checkout:
-        log.info('Attempting to select slot and checkout')
-        log.info('Selecting slot: ' + slots[0].full_name)
-        slots[0].select(driver)
-        site_config.Routes.CHECKOUT.navigate(driver)
-        alert('Checkout complete', 'Hero')
-        sleep(60)
-    else:
-        try:
-            # Allow time to check out manually
-            sleep(900)
-        except KeyboardInterrupt:
-            log.warning('Slumber disturbed')
+            if not args.checkout:
+                break
+            checked_out = False
+            while not checked_out:
+                try:
+                    log.info('Attempting to select slot and checkout')
+                    log.info('Selecting slot: ' + slots[0].full_name)
+                    slots[0].select(driver)
+                    site_config.Routes.CHECKOUT.navigate(driver)
+                    checked_out = True
+                    alert('Checkout complete', 'Hero')
+                except RouteRedirectException:
+                    log.warning('Checkout failed: Redirected to slot select')
+                    slots = slots_available(driver, site_config,
+                                            slot_prefs)
+                    if not slots:
+                        break
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="wf-deliverance")
+    parser.add_argument('--force_login', '-f', action='store_true',
+                        help="Login and refresh session data if it exists")
+    parser.add_argument('--checkout', '-c', action='store_true',
+                        help="Select first available slot and checkout")
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO if not args.debug else logging.DEBUG
+    )
+    log.info('Invoking Selenium Chrome webdriver')
+    driver = webdriver.Chrome()
+    try:
+        main_loop(driver, args)
+    except WebDriverException:
+        if args.debug:
+            dump_source(driver)
+        raise
+    try:
+        # allow time to check out manually
+        min = 15
+        log.info('Sleeping for {} minutes (press Ctrl+C to close)'.format(min))
+        sleep(min*60)
+    except KeyboardInterrupt:
+        log.warning('Slumber disturbed')
     log.info('Closing webdriver')
     driver.close()

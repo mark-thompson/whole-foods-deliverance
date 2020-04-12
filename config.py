@@ -18,7 +18,10 @@ class WholeFoods:
     class Locators:
         SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
         SLOT_SELECT = (By.XPATH, ".//div[contains(@class, 'ufss-slotselect ')]")
-        SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot  ufss-available')]")
+        SLOT = (
+            By.XPATH,
+            ".//*[contains(@class, 'ufss-slot ') and contains(@class, 'ufss-available')]"
+        )
 
     class Routes:
         SLOT_SELECT = Route(
@@ -33,8 +36,7 @@ class WholeFoods:
             ),
             Waypoint(
                 (By.XPATH, "//span[contains(@class, 'byg-continue-button')]"),
-                'alm/substitution',
-                optional=True
+                'alm/substitution'
             ),
             Waypoint(
                 (By.ID, 'subsContinueButton'),
@@ -50,8 +52,7 @@ class WholeFoods:
             ),
             Waypoint(
                 (By.ID, 'continue-top'),
-                'gp/buy/spc/handlers/display.html',
-                optional=True
+                'gp/buy/spc/handlers/display.html'
             ),
             Waypoint(
                 (By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),

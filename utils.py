@@ -25,6 +25,15 @@ def jitter(seconds, pct=20):
     sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
 
 
+def dump_source(driver):
+    filename = 'source_dump_{}.html'.format(
+        round(datetime.utcnow().timestamp() * 1000)
+    )
+    log.info('Dumping page source to: ' + filename)
+    with open(filename, 'w') as f:
+        f.write(driver.page_source)
+
+
 ###########
 # Elements
 #########

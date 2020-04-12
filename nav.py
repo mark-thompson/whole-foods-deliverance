@@ -14,6 +14,11 @@ class NavigationException(WebDriverException):
     pass
 
 
+class RouteRedirectException(WebDriverException):
+    """Thrown when a route is redirected to its starting point"""
+    pass
+
+
 class Waypoint:
     def __init__(self, locator, dest, optional=False):
         self.locator = locator
@@ -28,6 +33,7 @@ class Route:
     def __init__(self, route_start, *args):
         self.route_start = route_start
         self.waypoints = args
+        self.waypoints_reached = 0
 
     def __len__(self):
         return len(self.waypoints)
@@ -39,7 +45,7 @@ class Route:
     def navigate_waypoint(self, driver, waypoint, timeout):
         log.info('Navigating ' + str(waypoint))
         elem = get_element(driver, waypoint.locator, timeout=timeout)
-        jitter(.8)
+        jitter(.4)
         elem.click()
         try:
             WebDriverWait(driver, timeout).until(
@@ -56,6 +62,7 @@ class Route:
 
     def navigate(self, driver, timeout=10):
         log.info('Navigating ' + str(self))
+        self.waypoints_reached = 0
         if remove_qs(driver.current_url) != self.route_start:
             log.info('Navigating to route start: {}'.format(self.route_start))
             driver.get(self.route_start)
@@ -65,27 +72,31 @@ class Route:
                     waypnt.dest for waypnt in
                     self.waypoints[self.waypoints.index(waypoint)+1:]
                 ]
-                self.navigate_waypoint(driver, waypoint, timeout)
+                if remove_qs(driver.current_url) == BASE_URL + waypoint.dest:
+                    log.warning("Already at dest: '{}'".format(waypoint.dest))
+                else:
+                    self.navigate_waypoint(driver, waypoint, timeout)
             except NavigationException as e:
-                if remove_qs(driver.current_url) == AUTH_URL:
+                current = remove_qs(driver.current_url)
+                if current == AUTH_URL:
                     log.error('Handling login redirect')
                     wait_for_auth(driver)
-                elif remove_qs(driver.current_url) in valid_dest:
-                    log.warning("Navigated to valid dest '{}'".format(
-                        remove_qs(driver.current_url)
-                    ))
+                elif any(d in current for d in valid_dest):
+                    log.warning("Navigated to valid dest '{}'".format(current))
+                elif current == self.route_start and self.waypoints_reached:
+                    raise RouteRedirectException()
                 else:
                     log.warning(
                         "Current URL '{}' does not match target\n"
                         "Handling possible redirect (timeout in {}s)".format(
-                            remove_qs(driver.current_url), timeout
+                            current, timeout
                         )
                     )
                     try:
                         WebDriverWait(driver, timeout).until(
-                            EC.url_contains(waypoint.dest)
+                            EC.url_matches('|'.join(valid_dest))
                         )
-                        log.info("Made it to '{}'".format(waypoint.dest))
                     except TimeoutException:
                         raise e
+            self.waypoints_reached += 1
         log.info('Route complete')
