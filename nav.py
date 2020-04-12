@@ -60,7 +60,7 @@ class Route:
                 "Navigation to '{}' failed".format(waypoint.dest)
             )
 
-    def navigate(self, driver, timeout=10):
+    def navigate(self, driver, timeout=20):
         log.info('Navigating ' + str(self))
         self.waypoints_reached = 0
         if remove_qs(driver.current_url) != self.route_start:
@@ -97,6 +97,10 @@ class Route:
                             EC.url_matches('|'.join(valid_dest))
                         )
                     except TimeoutException:
+                        log.error(
+                            "Timed out waiting for redirect to a valid dest\n"
+                            "Current URL: '{}'".format(driver.current_url)
+                        )
                         raise e
             self.waypoints_reached += 1
         log.info('Route complete')
