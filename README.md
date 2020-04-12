@@ -77,6 +77,7 @@ Use one or more of the following options to change the script behavior.
 _e.g.:_ `python run.py -s 'Amazon Fresh' -c --debug`
 
 *Service*
+
 Specify the service you are using with the `-s` or `--service` option. Quotes are required.
 _Defaults to `'Whole Foods'`_
 ```
@@ -84,6 +85,7 @@ python run.py -s 'Amazon Fresh'
 ```
 
 *Auto Checkout*
+
 Run with the `-c` or `--checkout` flag to attempt to checkout when a slot is found. Uses your delivery window preferences as specified in `conf.toml` under the `slot_preference` key.
 _(See `conf_template.toml`)_
 ```
@@ -91,6 +93,7 @@ python run.py -c
 ```
 
 *Force Login*
+
 On first run, you will be prompted to login. Subsequent runs will attempt to use locally stored session data.
 If you find you are prompted to login frequently, run the script with the `-f` or `--force_login` flag to force login and refresh the stored data:
 ```
@@ -98,6 +101,7 @@ python run.py -f
 ```
 
 *Debug*
+
 Among other things, the `--debug` flag will save the current page source if a Selenium error is encountered. Use this if you are getting an error and want to help contribute to a fix
 ```
 python run.py --debug
