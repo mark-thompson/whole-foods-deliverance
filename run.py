@@ -62,6 +62,10 @@ def get_prefs_from_conf(conf):
     for day, windows in conf.items():
         for window in windows:
             if window.lower() == 'any':
+                if day.lower() == 'any':
+                    log.info("'Any' day, 'Any' time specified. "
+                             "Will look for first available slot")
+                    return None
                 prefs.append(day.lower())
             else:
                 prefs.append(clean_slotname('::'.join([day, window])))
@@ -74,9 +78,12 @@ def slots_available(driver, prefs):
     if slots and prefs:
         log.info('Comparing available slots to prefs')
         for cmp in prefs:
-            preferred_slots.extend(
-                [s for s in slots if clean_slotname(s).startswith(cmp)]
-            )
+            if cmp.startswith('any'):
+                _pref = [s for s in slots
+                         if cmp.replace('any', '') in clean_slotname(s)]
+            else:
+                _pref = [s for s in slots if clean_slotname(s).startswith(cmp)]
+            preferred_slots.extend(_pref)
         if preferred_slots:
             log.info('Found {} preferred slots: {}'.format(
                 len(preferred_slots),
