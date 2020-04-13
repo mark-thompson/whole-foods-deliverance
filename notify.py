@@ -5,7 +5,6 @@ import os
 from random import random
 from twilio.rest import Client as TwilioClient
 import platform
-import time
 
 from config import CONF_PATH
 
@@ -72,13 +71,15 @@ def alert(message, sound='Blow'):
     try:
         if platform.system() == "Windows":
             os.popen(
-                    "PowerShell -Command \"Add-Type –AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{}');".format(message)
-                )
+                "PowerShell -Command \"Add-Type –AssemblyName System.Speech; "
+                "(New-Object System.Speech.Synthesis.SpeechSynthesizer)."
+                "Speak('{}');".format(message)
+            )
         elif platform.system() == "Linux":
             # requires speech-dispatcher
             os.popen(
-                    'spd-say "{}"'.format(message)
-                )
+                'spd-say "{}"'.format(message)
+            )
         else:
             os.popen(
                 'afplay /System/Library/Sounds/{}.aiff && '
@@ -92,13 +93,10 @@ def annoy():
     """Sorry about it"""
     try:
         for _ in range(15):
-            if platform.system() == "Windows" or platform.system() == "Linux":
-                time.sleep(random())
-                print ('\a')
-            else:
-                os.popen(
-                    'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
+            os.popen(
+                'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
                     random()
-                    ))
+                )
+            )
     except Exception:
         pass
