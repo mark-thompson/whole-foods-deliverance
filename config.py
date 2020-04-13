@@ -1,9 +1,12 @@
 from selenium.webdriver.common.by import By
-
+import toml
 
 CONF_PATH = 'conf.toml'
 PKL_PATH = '.session_storage.pkl'
-BASE_URL = 'https://www.amazon.com/'
+try:
+    BASE_URL = toml.load(CONF_PATH)["base_url"]["url"]
+except Exception:
+    BASE_URL = 'https://www.amazon.com/'
 AUTH_URL = BASE_URL + 'ap/signin'
 
 NOT_LOGGED_IN_PATTERN = "Hello, Sign in"
