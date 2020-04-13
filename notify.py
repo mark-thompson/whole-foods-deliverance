@@ -6,7 +6,6 @@ from random import random
 from twilio.rest import Client as TwilioClient
 import platform
 import time
-import winsound
 
 from config import CONF_PATH
 
@@ -93,14 +92,13 @@ def annoy():
     """Sorry about it"""
     try:
         for _ in range(15):
-            time.sleep(random())
-            if platform.system() == "Windows":
-                winsound.MessageBeep()
-            elif platform.system() == "Linux":
+            if platform.system() == "Windows" or platform.system() == "Linux":
+                time.sleep(random())
                 print ('\a')
             else:
                 os.popen(
-                    'afplay /System/Library/Sounds/Sosumi.aiff'
-                    )
+                    'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
+                    random()
+                    ))
     except Exception:
         pass
