@@ -3,7 +3,7 @@ from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import BASE_URL, AUTH_URL
+from config import BASE_URL, Patterns
 from utils import get_element, jitter, remove_qs, wait_for_auth
 
 log = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class Route:
                 "Navigation to '{}' failed".format(waypoint.dest)
             )
 
-    def navigate(self, driver, timeout=10):
+    def navigate(self, driver, timeout=20):
         log.info('Navigating ' + str(self))
         self.waypoints_reached = 0
         if remove_qs(driver.current_url) != self.route_start:
@@ -78,8 +78,8 @@ class Route:
                     self.navigate_waypoint(driver, waypoint, timeout)
             except NavigationException as e:
                 current = remove_qs(driver.current_url)
-                if current == AUTH_URL:
-                    log.error('Handling login redirect')
+                if Patterns.AUTH in current:
+                    log.warning('Handling login redirect')
                     wait_for_auth(driver)
                 elif any(d in current for d in valid_dest):
                     log.warning("Navigated to valid dest '{}'".format(current))
@@ -97,6 +97,10 @@ class Route:
                             EC.url_matches('|'.join(valid_dest))
                         )
                     except TimeoutException:
+                        log.error(
+                            "Timed out waiting for redirect to a valid dest\n"
+                            "Current URL: '{}'".format(driver.current_url)
+                        )
                         raise e
             self.waypoints_reached += 1
         log.info('Route complete')

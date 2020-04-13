@@ -8,8 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
-from config import (PKL_PATH, BASE_URL, AUTH_URL, LOGIN_LOCATOR,
-                    NOT_LOGGED_IN_PATTERN)
+import config
 from notify import alert
 
 log = logging.getLogger(__name__)
@@ -80,7 +79,7 @@ def click_when_enabled(driver, element, timeout=10):
 ######
 
 
-def store_session_data(driver, path=PKL_PATH):
+def store_session_data(driver, path=config.PKL_PATH):
     data = {
         'cookies': driver.get_cookies(),
         'storage': {
@@ -98,7 +97,7 @@ def store_session_data(driver, path=PKL_PATH):
         log.warning('No session data found')
 
 
-def load_session_data(driver, path=PKL_PATH):
+def load_session_data(driver, path=config.PKL_PATH):
     log.info('Reading session data from: ' + path)
     with open(path, 'rb') as file:
         data = pickle.load(file)
@@ -121,17 +120,16 @@ def load_session_data(driver, path=PKL_PATH):
 
 
 def is_logged_in(driver):
-    if remove_qs(driver.current_url) == BASE_URL:
+    if remove_qs(driver.current_url) == config.BASE_URL:
         try:
-            text = get_element(driver, LOGIN_LOCATOR).text
-            return NOT_LOGGED_IN_PATTERN not in text
+            text = get_element(driver, config.Locators.LOGIN).text
+            return config.Patterns.NOT_LOGGED_IN not in text
         except Exception:
             return False
-    elif (remove_qs(driver.current_url) == AUTH_URL
-          or BASE_URL+'ap/cvf' in driver.current_url):
+    elif config.Patterns.AUTH in remove_qs(driver.current_url):
         return False
     else:
-        # Lazily assume true if we are anywhere but BASE_URL and AUTH_URL
+        # Lazily assume true if we are anywhere but BASE_URL or AUTH pattern
         return True
 
 

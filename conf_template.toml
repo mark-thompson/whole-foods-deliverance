@@ -9,16 +9,25 @@ token = ""
 chat_id = ""
 
 # Use this section to specify your desired delivery windows
+
 # > Lines beginning with '#' are considered comments and ignored
 # > Days without slot preferences will be ignored
+# > A day with the name 'Any' will check for slots on any day
+#   >> Using the keyword 'Any' within this day will assume no slot preference
+#      and alert / checkout with the first available slot
+
 [slot_preference]
-today = [
+Any = [
   "Any",
+  # "11:00 AM - 1:00 PM"
+]
+today = [
+  # "Any",
   # "1:00 PM - 3:00 PM",
   # "3:00 PM - 5:00 PM"
 ]
 tomorrow = [
-  "Any",
+  # "Any",
   # "3:00 PM - 5:00 PM",
   # "11:00 AM - 1:00 PM"
 ]
