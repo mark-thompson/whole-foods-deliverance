@@ -6,7 +6,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
 import chromedriver_binary
-from datetime import datetime
 
 import config
 from slots import SlotElement
