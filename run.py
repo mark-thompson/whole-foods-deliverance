@@ -10,7 +10,7 @@ from datetime import datetime
 
 import config
 from slots import SlotElement
-from nav import RouteRedirectException
+from nav import RouteRedirectException, Route, Waypoint
 from notify import send_sms, send_telegram, alert, annoy, conf_dependent
 from utils import (get_element, is_logged_in, wait_for_auth, jitter,
                    load_session_data, dump_source)
@@ -18,11 +18,19 @@ from utils import (get_element, is_logged_in, wait_for_auth, jitter,
 log = logging.getLogger(__name__)
 
 
-def get_slots(driver, site_config):
+def build_route(site_config, route_name):
+    route_dict = site_config.routes[route_name]
+    return Route(
+        route_dict['route_start'],
+        *[Waypoint(*w) for w in route_dict['waypoints']]
+    )
+
+
+def get_slots(driver):
     log.info('Checking for available slots')
-    slot_container = get_element(driver, site_config.Locators.SLOT_CONTAINER)
+    slot_container = get_element(driver, config.Locators.SLOT_CONTAINER)
     slotselect_elems = slot_container.find_elements(
-        *site_config.Locators.SLOT_SELECT
+        *config.Locators.SLOT_SELECT
     )
     slots = []
     for cont in slotselect_elems:
@@ -31,7 +39,7 @@ def get_slots(driver, site_config):
             By.XPATH,
             "//button[@name='{}']".format(id)
         )
-        for slot in cont.find_elements(*site_config.Locators.SLOT):
+        for slot in cont.find_elements(*config.Locators.SLOT):
             slots.append(SlotElement(slot, date_elem))
     if slots:
         log.info('Found {} slots: \n{}'.format(
@@ -55,21 +63,28 @@ def get_prefs_from_conf(conf):
     for day, windows in conf.items():
         for window in windows:
             if window.lower() == 'any':
+                if day.lower() == 'any':
+                    log.info("'Any' day, 'Any' time specified. "
+                             "Will look for first available slot")
+                    return None
                 prefs.append(day.lower())
             else:
                 prefs.append(clean_slotname('::'.join([day, window])))
     return(prefs)
 
 
-def slots_available(driver, site_config, prefs):
-    slots = get_slots(driver, site_config)
+def slots_available(driver, prefs):
+    slots = get_slots(driver)
     preferred_slots = []
     if slots and prefs:
         log.info('Comparing available slots to prefs')
         for cmp in prefs:
-            preferred_slots.extend(
-                [s for s in slots if clean_slotname(s).startswith(cmp)]
-            )
+            if cmp.startswith('any'):
+                _pref = [s for s in slots
+                         if cmp.replace('any', '') in clean_slotname(s)]
+            else:
+                _pref = [s for s in slots if clean_slotname(s).startswith(cmp)]
+            preferred_slots.extend(_pref)
         if preferred_slots:
             log.info('Found {} preferred slots: {}'.format(
                 len(preferred_slots),
@@ -80,7 +95,7 @@ def slots_available(driver, site_config, prefs):
         return slots
 
 
-def generate_message(slots, checkout):
+def generate_message(slots, service, checkout):
     text = []
     for slot in slots:
         date = str(slot._date_element)
@@ -92,7 +107,7 @@ def generate_message(slots, checkout):
             ['', 'Will attempt to checkout using slot:', slots[0].full_name]
         )
     if text:
-        return '\n'.join(["Whole Foods delivery slots found!", *text])
+        return '\n'.join([service + " delivery slots found!", *text])
 
 
 def main_loop(driver, args):
@@ -113,11 +128,10 @@ def main_loop(driver, args):
         else:
             log.error('Error logging in with stored session data')
             wait_for_auth(driver)
-    # v-- Change this dynamically when more site configs exist
-    site_config = config.WholeFoods
+    site_config = config.SiteConfig(args.service)
     # Navigate to slot select
-    site_config.Routes.SLOT_SELECT.navigate(driver)
-    slots = slots_available(driver, site_config, slot_prefs)
+    build_route(site_config, 'SLOT_SELECT').navigate(driver)
+    slots = slots_available(driver, slot_prefs)
     if slots:
         annoy()
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
@@ -125,33 +139,35 @@ def main_loop(driver, args):
         log.info('No slots found :( waiting...')
         jitter(25)
         driver.refresh()
-        slots = slots_available(driver, site_config, slot_prefs)
+        slots = slots_available(driver, slot_prefs)
         if slots:
             alert('Delivery slots found')
-            message_body = generate_message(slots, args.checkout)
+            message_body = generate_message(slots, args.service, args.checkout)
             send_sms(message_body)
             send_telegram(message_body)
             if not args.checkout:
                 break
             checked_out = False
+            log.info('Attempting to select slot and checkout')
             while not checked_out:
                 try:
-                    log.info('Attempting to select slot and checkout')
                     log.info('Selecting slot: ' + slots[0].full_name)
                     slots[0].select(driver)
-                    site_config.Routes.CHECKOUT.navigate(driver)
+                    build_route(site_config, 'CHECKOUT').navigate(driver)
                     checked_out = True
                     alert('Checkout complete', 'Hero')
                 except RouteRedirectException:
                     log.warning('Checkout failed: Redirected to slot select')
-                    slots = slots_available(driver, site_config,
-                                            slot_prefs)
+                    slots = slots_available(driver, slot_prefs)
                     if not slots:
                         break
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="wf-deliverance")
+    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                        default=config.VALID_SERVICES[0],
+                        help="The Amazon delivery service to use")
     parser.add_argument('--force_login', '-f', action='store_true',
                         help="Login and refresh session data if it exists")
     parser.add_argument('--checkout', '-c', action='store_true',
