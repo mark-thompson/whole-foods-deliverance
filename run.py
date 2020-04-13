@@ -175,6 +175,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
         level=logging.INFO if not args.debug else logging.DEBUG
     )
     log.info('Invoking Selenium Chrome webdriver')
