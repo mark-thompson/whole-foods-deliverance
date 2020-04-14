@@ -5,7 +5,6 @@ from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
-import chromedriver_binary
 
 import config
 from slots import SlotElement
@@ -167,10 +166,13 @@ if __name__ == '__main__':
     parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
                         default=config.VALID_SERVICES[0],
                         help="The Amazon delivery service to use")
-    parser.add_argument('--force_login', '-f', action='store_true',
+    parser.add_argument('--force-login', '-f', action='store_true',
                         help="Login and refresh session data if it exists")
     parser.add_argument('--checkout', '-c', action='store_true',
                         help="Select first available slot and checkout")
+    parser.add_argument('--no-import', action='store_true',
+                        help="Don't import chromedriver_binary. Set this flag "
+                             "if using an existing chromedriver in $PATH")
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -179,6 +181,11 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S',
         level=logging.INFO if not args.debug else logging.DEBUG
     )
+
+    if not args.no_import:
+        # Import appends ./env/lib/.../chromedriver to $PATH
+        import chromedriver_binary
+
     log.info('Invoking Selenium Chrome webdriver')
     driver = webdriver.Chrome()
     try:
