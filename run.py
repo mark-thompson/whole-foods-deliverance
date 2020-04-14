@@ -5,6 +5,7 @@ from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
+from concurrent.futures import ThreadPoolExecutor
 
 import config
 from slots import SlotElement
@@ -141,8 +142,9 @@ def main_loop(driver, args):
         if slots:
             alert('Delivery slots found')
             message_body = generate_message(slots, args.service, args.checkout)
-            send_sms(message_body)
-            send_telegram(message_body)
+            executor = ThreadPoolExecutor()
+            executor.submit(send_sms, message_body)
+            executor.submit(send_telegram, message_body)
             if not args.checkout:
                 break
             checked_out = False
@@ -159,6 +161,10 @@ def main_loop(driver, args):
                     slots = slots_available(driver, slot_prefs)
                     if not slots:
                         break
+    try:
+        executor.shutdown()
+    except Exception as e:
+        log.error(e)
 
 
 if __name__ == '__main__':
