@@ -136,7 +136,7 @@ def main_loop(driver, args):
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
     while not slots:
         log.info('No slots found :( waiting...')
-        jitter(25)
+        jitter(config.INTERVAL)
         driver.refresh()
         slots = slots_available(driver, slot_prefs)
         if slots:

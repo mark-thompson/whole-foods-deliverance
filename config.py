@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 CONF_PATH = 'conf.toml'
 PKL_PATH = '.session_storage.pkl'
 BASE_URL = 'https://www.amazon.com/'
+INTERVAL = 25
 
 VALID_SERVICES = [
     'Whole Foods',
