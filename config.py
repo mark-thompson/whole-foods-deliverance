@@ -20,7 +20,6 @@ class Patterns:
 class Locators:
     LOGIN = (By.ID, 'nav-link-accountList')
     SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
-    SLOT_SELECT = (By.XPATH, ".//div[contains(@class, 'ufss-slotselect ')]")
     SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot ') and "
                       "contains(@class, 'ufss-available')]")
 

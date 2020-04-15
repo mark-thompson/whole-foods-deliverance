@@ -11,7 +11,7 @@ import config
 from slots import SlotElement
 from nav import RouteRedirectException, Route, Waypoint
 from notify import send_sms, send_telegram, alert, annoy, conf_dependent
-from utils import (get_element, is_logged_in, wait_for_auth, jitter,
+from utils import (wait_for_element, is_logged_in, wait_for_auth, jitter,
                    load_session_data, dump_source)
 
 log = logging.getLogger(__name__)
@@ -27,24 +27,16 @@ def build_route(site_config, route_name):
 
 def get_slots(driver):
     log.info('Checking for available slots')
-    slot_container = get_element(driver, config.Locators.SLOT_CONTAINER)
-    slotselect_elems = slot_container.find_elements(
-        *config.Locators.SLOT_SELECT
-    )
-    slots = []
-    for cont in slotselect_elems:
-        id = cont.get_attribute('id')
-        date_elem = driver.find_element(
-            By.XPATH,
-            "//button[@name='{}']".format(id)
-        )
-        for slot in cont.find_elements(*config.Locators.SLOT):
-            slots.append(SlotElement(slot, date_elem))
+    slot_container = wait_for_element(driver, config.Locators.SLOT_CONTAINER)
+    slots = [
+        SlotElement(element) for element in
+        slot_container.find_elements(*config.Locators.SLOT)
+    ]
     if slots:
         log.info('Found {} slots: \n{}'.format(
             len(slots), '\n'.join([s.full_name for s in slots])
         ))
-    return(slots)
+    return slots
 
 
 def clean_slotname(slot_or_str):
@@ -69,7 +61,7 @@ def get_prefs_from_conf(conf):
                 prefs.append(day.lower())
             else:
                 prefs.append(clean_slotname('::'.join([day, window])))
-    return(prefs)
+    return prefs
 
 
 def slots_available(driver, prefs):
@@ -134,6 +126,8 @@ def main_loop(driver, args):
     if slots:
         annoy()
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
+    else:
+        executor = ThreadPoolExecutor()
     while not slots:
         log.info('No slots found :( waiting...')
         jitter(config.INTERVAL)
@@ -142,7 +136,6 @@ def main_loop(driver, args):
         if slots:
             alert('Delivery slots found')
             message_body = generate_message(slots, args.service, args.checkout)
-            executor = ThreadPoolExecutor()
             executor.submit(send_sms, message_body)
             executor.submit(send_telegram, message_body)
             if not args.checkout:
@@ -152,7 +145,7 @@ def main_loop(driver, args):
             while not checked_out:
                 try:
                     log.info('Selecting slot: ' + slots[0].full_name)
-                    slots[0].select(driver)
+                    slots[0].select()
                     build_route(site_config, 'CHECKOUT').navigate(driver)
                     checked_out = True
                     alert('Checkout complete', 'Hero')
@@ -197,6 +190,7 @@ if __name__ == '__main__':
     try:
         main_loop(driver, args)
     except WebDriverException:
+        alert('An error occurred', 'Basso')
         if args.debug:
             dump_source(driver)
         raise

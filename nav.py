@@ -4,7 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from config import BASE_URL, Patterns
-from utils import get_element, jitter, remove_qs, wait_for_auth
+from utils import wait_for_element, jitter, remove_qs, wait_for_auth
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class Route:
 
     def navigate_waypoint(self, driver, waypoint, timeout):
         log.info('Navigating ' + str(waypoint))
-        elem = get_element(driver, waypoint.locator, timeout=timeout)
+        elem = wait_for_element(driver, waypoint.locator, timeout=timeout)
         jitter(.4)
         elem.click()
         try:

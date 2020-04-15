@@ -3,6 +3,7 @@ import pickle
 from time import sleep
 from random import uniform
 from datetime import datetime
+from urllib.parse import urlparse
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (ElementClickInterceptedException,
@@ -24,9 +25,15 @@ def jitter(seconds, pct=20):
     sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
 
 
+def timestamp():
+    return datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+
+
 def dump_source(driver):
-    filename = 'source_dump_{}.html'.format(
-        round(datetime.utcnow().timestamp() * 1000)
+    filename = 'source_dump{}_{}.html'.format(
+        urlparse(driver.current_url).path.replace('/', '-')
+        .replace('.html', ''),
+        timestamp()
     )
     log.info('Dumping page source to: ' + filename)
     with open(filename, 'w') as f:
@@ -50,7 +57,7 @@ class element_clickable:
             return False
 
 
-def get_element(driver, locator, timeout=5):
+def wait_for_elements(driver, locator, timeout=5):
     try:
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(locator)
@@ -58,7 +65,11 @@ def get_element(driver, locator, timeout=5):
     except TimeoutException:
         log.error("Timed out waiting for target element: {}".format(locator))
         raise
-    return driver.find_element(*locator)
+    return driver.find_elements(*locator)
+
+
+def wait_for_element(driver, locator, **kwargs):
+    return wait_for_elements(driver, locator, **kwargs)[0]
 
 
 def click_when_enabled(driver, element, timeout=10):
@@ -122,7 +133,7 @@ def load_session_data(driver, path=config.PKL_PATH):
 def is_logged_in(driver):
     if remove_qs(driver.current_url) == config.BASE_URL:
         try:
-            text = get_element(driver, config.Locators.LOGIN).text
+            text = wait_for_element(driver, config.Locators.LOGIN).text
             return config.Patterns.NOT_LOGGED_IN not in text
         except Exception:
             return False
