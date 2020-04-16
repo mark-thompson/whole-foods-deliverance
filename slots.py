@@ -1,17 +1,9 @@
 import logging
-from selenium.common.exceptions import WebDriverException
 
+from exceptions import SlotDateElementAmbiguous
 from utils import click_when_enabled
 
 log = logging.getLogger(__name__)
-
-
-class SlotDateElementException(WebDriverException):
-    """
-    Thrown when a slot element does not have exactly one ancestor matching
-    the date element XPATH
-    """
-    pass
 
 
 def get_element_text(element):
@@ -92,7 +84,7 @@ class SlotElement(WebElement):
             "//button[@name='{}']".format(id)
         )
         if len(elems) != 1:
-            raise SlotDateElementException(
+            raise SlotDateElementAmbiguous(
                 'Expected 1 date element but found {}'.format(len(elems))
             )
         else:

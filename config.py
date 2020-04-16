@@ -13,8 +13,10 @@ VALID_SERVICES = [
 
 
 class Patterns:
-    AUTH = BASE_URL + 'ap/'
+    AUTH_URL = BASE_URL + 'ap/'
     NOT_LOGGED_IN = "Hello, Sign in"
+    OOS_URL = 'gp/buy/itemselect/handlers/display.html'
+    OOS = "This item is no longer available"
 
 
 class Locators:
@@ -22,6 +24,8 @@ class Locators:
     SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
     SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot ') and "
                       "contains(@class, 'ufss-available')]")
+    OOS_ITEM = (By.XPATH, "//*[contains(@class, ' item-row')]")
+    OOS_CONTINUE = (By.XPATH, "//*[@name='continue-bottom']")
 
 
 class SiteConfig:

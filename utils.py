@@ -1,5 +1,7 @@
 import logging
 import pickle
+import toml
+import os
 from time import sleep
 from random import uniform
 from datetime import datetime
@@ -38,6 +40,26 @@ def dump_source(driver):
     log.info('Dumping page source to: ' + filename)
     with open(filename, 'w') as f:
         f.write(driver.page_source)
+
+
+def save_removed_items(driver):
+    """Writes OOS items that have been removed from cart to a TOML file"""
+    removed = []
+    for item in driver.find_elements(*config.Locators.OOS_ITEM):
+        if config.Patterns.OOS in item.text:
+            removed.append({
+                'text': item.text.split(config.Patterns.OOS)[0],
+                'product_id': item.find_element_by_xpath(
+                        ".//*[starts-with(@name, 'asin')]"
+                    ).get_attribute('value')
+            })
+    if not removed:
+        log.warning("Couldn't detect any removed items to save")
+    else:
+        fp = 'removed_items_{}.toml'.format(timestamp())
+        log.info('Writing {} removed items to: {}'.format(len(removed), fp))
+        with open(fp, 'w') as f:
+            toml.dump({'items': removed}, f)
 
 
 ###########
@@ -137,7 +159,7 @@ def is_logged_in(driver):
             return config.Patterns.NOT_LOGGED_IN not in text
         except Exception:
             return False
-    elif config.Patterns.AUTH in remove_qs(driver.current_url):
+    elif config.Patterns.AUTH_URL in remove_qs(driver.current_url):
         return False
     else:
         # Lazily assume true if we are anywhere but BASE_URL or AUTH pattern
@@ -165,3 +187,21 @@ def wait_for_auth(driver, timeout_mins=10):
         sleep(1)
     log.info('Logged in')
     store_session_data(driver)
+
+
+def login_flow(driver, force_login):
+    log.info('Navigating to ' + config.BASE_URL)
+    driver.get(config.BASE_URL)
+
+    if force_login or not os.path.exists(config.PKL_PATH):
+        # Login and capture Amazon session data...
+        wait_for_auth(driver)
+    else:
+        # ...or load from storage
+        load_session_data(driver)
+        driver.refresh()
+        if is_logged_in(driver):
+            log.info('Successfully logged in via stored session data')
+        else:
+            log.error('Error logging in with stored session data')
+            wait_for_auth(driver)

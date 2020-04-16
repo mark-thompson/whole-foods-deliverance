@@ -1,42 +1,27 @@
 import argparse
 import logging
-import os
 from time import sleep
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
 import config
 from slots import SlotElement
-from nav import RouteRedirectException, Route, Waypoint
+from exceptions import RouteRedirect, UnhandledRedirect
+from nav import Route, Waypoint, handle_redirect
 from notify import send_sms, send_telegram, alert, annoy, conf_dependent
-from utils import (wait_for_element, is_logged_in, wait_for_auth, jitter,
-                   load_session_data, dump_source)
+from utils import login_flow, wait_for_element, jitter, dump_source, remove_qs
 
 log = logging.getLogger(__name__)
 
 
-def build_route(site_config, route_name):
+def build_route(site_config, route_name, parser_args):
     route_dict = site_config.routes[route_name]
     return Route(
         route_dict['route_start'],
+        parser_args,
         *[Waypoint(*w) for w in route_dict['waypoints']]
     )
-
-
-def get_slots(driver):
-    log.info('Checking for available slots')
-    slot_container = wait_for_element(driver, config.Locators.SLOT_CONTAINER)
-    slots = [
-        SlotElement(element) for element in
-        slot_container.find_elements(*config.Locators.SLOT)
-    ]
-    if slots:
-        log.info('Found {} slots: \n{}'.format(
-            len(slots), '\n'.join([s.full_name for s in slots])
-        ))
-    return slots
 
 
 def clean_slotname(slot_or_str):
@@ -49,7 +34,7 @@ def clean_slotname(slot_or_str):
 
 @conf_dependent('slot_preference')
 def get_prefs_from_conf(conf):
-    log.info("Creating prefs from conf dict: {}".format(conf))
+    log.info('Reading slot preferences from conf: {}'.format(conf))
     prefs = []
     for day, windows in conf.items():
         for window in windows:
@@ -64,9 +49,24 @@ def get_prefs_from_conf(conf):
     return prefs
 
 
-def slots_available(driver, prefs):
-    slots = get_slots(driver)
+def get_slots(driver, prefs, slot_route):
+    if slot_route.waypoints[-1].dest not in remove_qs(driver.current_url):
+        try:
+            handle_redirect(driver, slot_route.args.ignore_oos)
+        except UnhandledRedirect:
+            log.warning('Unhandled redirect')
+            slot_route.navigate(driver)
+    log.info('Checking for available slots')
     preferred_slots = []
+    slot_container = wait_for_element(driver, config.Locators.SLOT_CONTAINER)
+    slots = [
+        SlotElement(element) for element in
+        slot_container.find_elements(*config.Locators.SLOT)
+    ]
+    if slots:
+        log.info('Found {} slots: \n{}'.format(
+            len(slots), '\n'.join([s.full_name for s in slots])
+        ))
     if slots and prefs:
         log.info('Comparing available slots to prefs')
         for cmp in prefs:
@@ -102,27 +102,13 @@ def generate_message(slots, service, checkout):
 
 
 def main_loop(driver, args):
-    log.info('Reading slot preferences from conf')
     slot_prefs = get_prefs_from_conf()
-    log.info('Navigating to ' + config.BASE_URL)
-    driver.get(config.BASE_URL)
-
-    if args.force_login or not os.path.exists(config.PKL_PATH):
-        # Login and capture Amazon session data...
-        wait_for_auth(driver)
-    else:
-        # ...or load from storage
-        load_session_data(driver)
-        driver.refresh()
-        if is_logged_in(driver):
-            log.info('Successfully logged in via stored session data')
-        else:
-            log.error('Error logging in with stored session data')
-            wait_for_auth(driver)
     site_config = config.SiteConfig(args.service)
-    # Navigate to slot select
-    build_route(site_config, 'SLOT_SELECT').navigate(driver)
-    slots = slots_available(driver, slot_prefs)
+    login_flow(driver, args.force_login)
+
+    slot_route = build_route(site_config, 'SLOT_SELECT', args)
+    slot_route.navigate(driver)
+    slots = get_slots(driver, slot_prefs, slot_route)
     if slots:
         annoy()
         alert('Delivery slots available. What do you need me for?', 'Sosumi')
@@ -132,7 +118,7 @@ def main_loop(driver, args):
         log.info('No slots found :( waiting...')
         jitter(config.INTERVAL)
         driver.refresh()
-        slots = slots_available(driver, slot_prefs)
+        slots = get_slots(driver, slot_prefs, slot_route)
         if slots:
             alert('Delivery slots found')
             message_body = generate_message(slots, args.service, args.checkout)
@@ -146,12 +132,12 @@ def main_loop(driver, args):
                 try:
                     log.info('Selecting slot: ' + slots[0].full_name)
                     slots[0].select()
-                    build_route(site_config, 'CHECKOUT').navigate(driver)
+                    build_route(site_config, 'CHECKOUT', args).navigate(driver)
                     checked_out = True
                     alert('Checkout complete', 'Hero')
-                except RouteRedirectException:
+                except RouteRedirect:
                     log.warning('Checkout failed: Redirected to slot select')
-                    slots = slots_available(driver, slot_prefs)
+                    slots = get_slots(driver, slot_prefs, slot_route)
                     if not slots:
                         break
     try:
@@ -160,19 +146,24 @@ def main_loop(driver, args):
         log.error(e)
 
 
+parser = argparse.ArgumentParser(description="wf-deliverance")
+parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                    default=config.VALID_SERVICES[0],
+                    help="The Amazon delivery service to use")
+parser.add_argument('--force-login', '-f', action='store_true',
+                    help="Login and refresh session data if it exists")
+parser.add_argument('--checkout', '-c', action='store_true',
+                    help="Select first available slot and checkout")
+parser.add_argument('--ignore-oos', action='store_true',
+                    help="Ignores out of stock alerts, but attempts to "
+                         "save removed item details to a local TOML file")
+parser.add_argument('--no-import', action='store_true',
+                    help="Don't import chromedriver_binary. Set this flag "
+                         "if using an existing chromedriver in $PATH")
+parser.add_argument('--debug', action='store_true')
+
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="wf-deliverance")
-    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
-                        default=config.VALID_SERVICES[0],
-                        help="The Amazon delivery service to use")
-    parser.add_argument('--force-login', '-f', action='store_true',
-                        help="Login and refresh session data if it exists")
-    parser.add_argument('--checkout', '-c', action='store_true',
-                        help="Select first available slot and checkout")
-    parser.add_argument('--no-import', action='store_true',
-                        help="Don't import chromedriver_binary. Set this flag "
-                             "if using an existing chromedriver in $PATH")
-    parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -190,7 +181,7 @@ if __name__ == '__main__':
     try:
         main_loop(driver, args)
     except WebDriverException:
-        alert('An error occurred', 'Basso')
+        alert('Encountered an error', 'Basso')
         if args.debug:
             dump_source(driver)
         raise

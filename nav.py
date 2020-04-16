@@ -1,22 +1,56 @@
 import logging
-from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import BASE_URL, Patterns
-from utils import wait_for_element, jitter, remove_qs, wait_for_auth
+from config import BASE_URL, Patterns, Locators
+from exceptions import (NavigationException, RouteRedirect, ItemOutOfStock,
+                        UnhandledRedirect)
+from utils import (wait_for_element, wait_for_auth, jitter, remove_qs,
+                   click_when_enabled, save_removed_items)
 
 log = logging.getLogger(__name__)
 
 
-class NavigationException(WebDriverException):
-    """Thrown when a navigation action does not reach target destination"""
-    pass
+def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
+                    route=None):
+    current = remove_qs(driver.current_url)
+    log.warning("Redirected to: '{}'".format(current))
 
-
-class RouteRedirectException(WebDriverException):
-    """Thrown when a route is redirected to its starting point"""
-    pass
+    if Patterns.AUTH_URL in current:
+        wait_for_auth(driver)
+    elif Patterns.OOS_URL in current:
+        try:
+            save_removed_items(driver)
+        except Exception:
+            log.error('Could not save removed items')
+        if ignore_oos:
+            log.warning('Attempting to proceed through OOS alert')
+            click_when_enabled(
+                driver,
+                wait_for_element(driver, Locators.OOS_CONTINUE)
+            )
+        else:
+            raise ItemOutOfStock(
+                'Encountered OOS Alert. Use `ignore-oos` to bypass'
+            )
+    elif route and current == route.route_start and route.waypoints_reached:
+        raise RouteRedirect()
+    elif valid_dest and timeout:
+        log.warning(
+            'Handling unknown redirect (timeout in {}s)'.format(timeout)
+        )
+        try:
+            WebDriverWait(driver, timeout).until(
+                EC.url_matches('|'.join(valid_dest))
+            )
+        except TimeoutException:
+            raise UnhandledRedirect(
+                "Timed out waiting for redirect to a valid dest\n"
+                "Current URL: '{}'".format(driver.current_url)
+            )
+    else:
+        raise UnhandledRedirect()
 
 
 class Waypoint:
@@ -30,8 +64,9 @@ class Waypoint:
 
 
 class Route:
-    def __init__(self, route_start, *args):
+    def __init__(self, route_start, parser_args, *args):
         self.route_start = route_start
+        self.args = parser_args
         self.waypoints = args
         self.waypoints_reached = 0
 
@@ -42,19 +77,22 @@ class Route:
         return "<Route beginning at '{}' with {} stops>".format(
             self.route_start, len(self))
 
-    def navigate_waypoint(self, driver, waypoint, timeout):
+    def navigate_waypoint(self, driver, waypoint, timeout, valid_dest):
         log.info('Navigating ' + str(waypoint))
         elem = wait_for_element(driver, waypoint.locator, timeout=timeout)
         jitter(.4)
-        elem.click()
+        click_when_enabled(driver, elem)
         try:
             WebDriverWait(driver, timeout).until(
                 EC.staleness_of(elem)
             )
         except TimeoutException:
             pass
-        if remove_qs(driver.current_url) == BASE_URL + waypoint.dest:
+        current = remove_qs(driver.current_url)
+        if current == BASE_URL + waypoint.dest:
             log.info("Navigated to '{}'".format(waypoint.dest))
+        elif valid_dest and any(d in current for d in valid_dest):
+            log.info("Navigated to valid dest '{}'".format(current))
         else:
             raise NavigationException(
                 "Navigation to '{}' failed".format(waypoint.dest)
@@ -75,32 +113,13 @@ class Route:
                 if remove_qs(driver.current_url) == BASE_URL + waypoint.dest:
                     log.warning("Already at dest: '{}'".format(waypoint.dest))
                 else:
-                    self.navigate_waypoint(driver, waypoint, timeout)
-            except NavigationException as e:
-                current = remove_qs(driver.current_url)
-                if Patterns.AUTH in current:
-                    log.warning('Handling login redirect')
-                    wait_for_auth(driver)
-                elif any(d in current for d in valid_dest):
-                    log.warning("Navigated to valid dest '{}'".format(current))
-                elif current == self.route_start and self.waypoints_reached:
-                    raise RouteRedirectException()
-                else:
-                    log.warning(
-                        "Current URL '{}' does not match target\n"
-                        "Handling possible redirect (timeout in {}s)".format(
-                            current, timeout
-                        )
-                    )
-                    try:
-                        WebDriverWait(driver, timeout).until(
-                            EC.url_matches('|'.join(valid_dest))
-                        )
-                    except TimeoutException:
-                        log.error(
-                            "Timed out waiting for redirect to a valid dest\n"
-                            "Current URL: '{}'".format(driver.current_url)
-                        )
-                        raise e
+                    self.navigate_waypoint(driver, waypoint, timeout,
+                                           valid_dest)
+            except NavigationException:
+                handle_redirect(driver,
+                                ignore_oos=self.args.ignore_oos,
+                                valid_dest=valid_dest,
+                                timeout=timeout,
+                                route=self)
             self.waypoints_reached += 1
         log.info('Route complete')
