@@ -6,11 +6,13 @@ from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from slots import SlotElement
-from exceptions import RouteRedirect, UnhandledRedirect
-from nav import Route, Waypoint, handle_redirect
-from notify import send_sms, send_telegram, alert, annoy, conf_dependent
-from utils import login_flow, wait_for_element, jitter, dump_source, remove_qs
+from deliverance.elements import SlotElement
+from deliverance.exceptions import RouteRedirect, UnhandledRedirect
+from deliverance.nav import Route, Waypoint, handle_redirect
+from deliverance.notify import (send_sms, send_telegram, alert, annoy,
+                                conf_dependent)
+from deliverance.utils import (login_flow, wait_for_element, jitter,
+                               dump_source, remove_qs)
 
 log = logging.getLogger(__name__)
 

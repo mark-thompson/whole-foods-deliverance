@@ -4,10 +4,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from config import BASE_URL, Patterns, Locators
-from exceptions import (NavigationException, RouteRedirect, ItemOutOfStock,
-                        UnhandledRedirect)
-from utils import (wait_for_element, wait_for_auth, jitter, remove_qs,
-                   click_when_enabled, save_removed_items)
+from deliverance.exceptions import (NavigationException, RouteRedirect,
+                                    ItemOutOfStock, UnhandledRedirect)
+from deliverance.utils import (wait_for_element, click_when_enabled, jitter,
+                               remove_qs, wait_for_auth, save_removed_items)
 
 log = logging.getLogger(__name__)
 

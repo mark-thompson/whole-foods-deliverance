@@ -12,7 +12,7 @@ from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
 import config
-from notify import alert
+from deliverance.notify import alert
 
 log = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import logging
 
-from exceptions import SlotDateElementAmbiguous
-from utils import click_when_enabled
+from deliverance.exceptions import SlotDateElementAmbiguous
+from deliverance.utils import click_when_enabled
 
 log = logging.getLogger(__name__)
 
