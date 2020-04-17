@@ -58,7 +58,7 @@ def save_removed_items(driver):
     else:
         fp = 'removed_items_{}.toml'.format(timestamp())
         log.info('Writing {} removed items to: {}'.format(len(removed), fp))
-        with open(fp, 'w') as f:
+        with open(fp, 'w', encoding='utf-8') as f:
             toml.dump({'items': removed}, f)
 
 
