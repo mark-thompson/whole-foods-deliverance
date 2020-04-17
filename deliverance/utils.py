@@ -38,7 +38,7 @@ def dump_source(driver):
         timestamp()
     )
     log.info('Dumping page source to: ' + filename)
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write(driver.page_source)
 
 
