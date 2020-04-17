@@ -21,7 +21,9 @@ def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
         wait_for_auth(driver)
     elif Patterns.OOS_URL in current:
         handle_oos(driver, ignore_oos)
-    elif route and current == route.route_start and route.waypoints_reached:
+    elif route and current == route.route_start:
+        if not route.waypoints_reached:
+            driver.refresh()
         raise RouteRedirect()
     elif valid_dest and timeout:
         log.warning(
