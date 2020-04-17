@@ -3,11 +3,11 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import BASE_URL, Patterns, Locators
+from config import BASE_URL, Patterns
 from deliverance.exceptions import (NavigationException, RouteRedirect,
-                                    ItemOutOfStock, UnhandledRedirect)
+                                    UnhandledRedirect)
 from deliverance.utils import (wait_for_element, click_when_enabled, jitter,
-                               remove_qs, wait_for_auth, save_removed_items)
+                               remove_qs, wait_for_auth, handle_oos)
 
 log = logging.getLogger(__name__)
 
@@ -20,20 +20,7 @@ def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
     if Patterns.AUTH_URL in current:
         wait_for_auth(driver)
     elif Patterns.OOS_URL in current:
-        try:
-            save_removed_items(driver)
-        except Exception:
-            log.error('Could not save removed items')
-        if ignore_oos:
-            log.warning('Attempting to proceed through OOS alert')
-            click_when_enabled(
-                driver,
-                wait_for_element(driver, Locators.OOS_CONTINUE)
-            )
-        else:
-            raise ItemOutOfStock(
-                'Encountered OOS Alert. Use `ignore-oos` to bypass'
-            )
+        handle_oos(driver, ignore_oos)
     elif route and current == route.route_start and route.waypoints_reached:
         raise RouteRedirect()
     elif valid_dest and timeout:

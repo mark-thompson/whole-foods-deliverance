@@ -12,6 +12,7 @@ from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
 import config
+from deliverance.exceptions import ItemOutOfStock
 from deliverance.notify import alert
 
 log = logging.getLogger(__name__)
@@ -107,10 +108,10 @@ def click_when_enabled(driver, element, timeout=10):
         sleep(delay)
         element.click()
 
+
 #######
 # Auth
 ######
-
 
 def store_session_data(driver, path=config.PKL_PATH):
     data = {
@@ -205,3 +206,33 @@ def login_flow(driver, force_login):
         else:
             log.error('Error logging in with stored session data')
             wait_for_auth(driver)
+
+
+####################
+# Redirect Handlers
+##################
+
+def handle_oos(driver, ignore_oos, timeout_mins=5):
+    try:
+        save_removed_items(driver)
+    except Exception:
+        log.error('Could not save removed items')
+    if ignore_oos:
+        log.warning('Attempting to proceed through OOS alert')
+        click_when_enabled(
+            driver,
+            wait_for_element(driver, config.Locators.OOS_CONTINUE)
+        )
+    else:
+        t = datetime.now()
+        alert(
+            "An item is out of stock. Press continue if you'd like to proceed",
+            'Sosumi'
+        )
+        while config.Patterns.OOS_URL in remove_qs(driver.current_url):
+            if int((datetime.now() - t).total_seconds()) > timeout_mins*60:
+                raise ItemOutOfStock(
+                    'Encountered OOS alert and timed out waiting for user '
+                    'input\n Use `ignore-oos` to bypass these alerts'
+                )
+            sleep(1)
