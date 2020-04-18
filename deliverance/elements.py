@@ -97,3 +97,22 @@ class SlotElement(WebElement):
             self.find_child('ufss-slot-toggle-native-button'),
             **kwargs
         )
+
+
+class CartItem(WebElement):
+    STR_XPATH = ['sc-product-title', 'qs-widget-container']
+    STR_SEP = ' - Qty: '
+
+    @property
+    def product_id(self):
+        return self._element.get_attribute('data-asin')
+
+    @property
+    def data(self):
+        return {
+            'name': self.name,
+            'quantity': get_element_text(self.find_child(self.STR_XPATH[1])),
+            'price': get_element_text(self.find_child('sc-price ')),
+            'product_id': self.product_id,
+            'link': self.find_child('sc-product-link').get_attribute('href')
+        }

@@ -26,6 +26,8 @@ class Locators:
                       "contains(@class, 'ufss-available')]")
     OOS_ITEM = (By.XPATH, "//*[contains(@class, ' item-row')]")
     OOS_CONTINUE = (By.XPATH, "//*[@name='continue-bottom']")
+    CART_ITEMS = (By.XPATH, "//div[@data-name='Active Items']"
+                            "/*[contains(@class, 'sc-list-item')]")
 
 
 class SiteConfig:
@@ -79,3 +81,10 @@ class SiteConfig:
                 )
             ]
         }
+
+    @property
+    def cart_endpoint(self):
+        if self.service == 'Amazon Fresh':
+            return 'cart/fresh'
+        else:
+            return 'cart/localmarket'

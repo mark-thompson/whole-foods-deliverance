@@ -1,18 +1,19 @@
 import argparse
 import logging
+import toml
 from time import sleep
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from deliverance.elements import SlotElement
+from deliverance.elements import SlotElement, CartItem
 from deliverance.exceptions import RouteRedirect, UnhandledRedirect
 from deliverance.nav import Route, Waypoint, handle_redirect
 from deliverance.notify import (send_sms, send_telegram, alert, annoy,
                                 conf_dependent)
-from deliverance.utils import (login_flow, wait_for_element, jitter,
-                               dump_source, remove_qs)
+from deliverance.utils import (login_flow, wait_for_elements, wait_for_element,
+                               jitter, dump_source, remove_qs, timestamp)
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,25 @@ def get_prefs_from_conf(conf):
             else:
                 prefs.append(clean_slotname('::'.join([day, window])))
     return prefs
+
+
+def save_cart(driver, site_config):
+    filepath = '{}_cart_{}.toml'.format(
+        site_config.service.replace(' ', ''),
+        timestamp()
+    )
+    driver.get(config.BASE_URL + site_config.cart_endpoint)
+    jitter(.4)
+    cart = []
+    for element in wait_for_elements(driver, config.Locators.CART_ITEMS):
+        try:
+            cart.append(CartItem(element).data)
+        except Exception:
+            log.warning('Failed to parse a cart item')
+    if cart:
+        log.info('Writing {} cart items to: {}'.format(len(cart), filepath))
+        with open(filepath, 'w', encoding='utf-8') as f:
+            toml.dump({'cart item': cart}, f)  # :)
 
 
 def get_slots(driver, prefs, slot_route):
@@ -108,6 +128,11 @@ def main_loop(driver, args):
     site_config = config.SiteConfig(args.service)
     login_flow(driver, args.force_login)
 
+    if args.save_cart:
+        try:
+            save_cart(driver, site_config)
+        except Exception:
+            log.error('Failed to save cart items')
     slot_route = build_route(site_config, 'SLOT_SELECT', args)
     slot_route.navigate(driver)
     slots = get_slots(driver, slot_prefs, slot_route)
@@ -159,6 +184,8 @@ parser.add_argument('--checkout', '-c', action='store_true',
 parser.add_argument('--ignore-oos', action='store_true',
                     help="Ignores out of stock alerts, but attempts to "
                          "save removed item details to a local TOML file")
+parser.add_argument('--save-cart', action='store_true',
+                    help="Saves your cart information to a local TOML file")
 parser.add_argument('--no-import', action='store_true',
                     help="Don't import chromedriver_binary. Set this flag "
                          "if using an existing chromedriver in $PATH")
