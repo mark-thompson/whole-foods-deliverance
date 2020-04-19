@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import config
 from deliverance.elements import SlotElement, CartItem
-from deliverance.exceptions import RouteRedirect, UnhandledRedirect
+from deliverance.exceptions import Redirect, RouteRedirect
 from deliverance.nav import Route, Waypoint, handle_redirect
 from deliverance.notify import (send_sms, send_telegram, alert, annoy,
                                 conf_dependent)
@@ -75,8 +75,7 @@ def get_slots(driver, prefs, slot_route):
     if slot_route.waypoints[-1].dest not in remove_qs(driver.current_url):
         try:
             handle_redirect(driver, slot_route.args.ignore_oos)
-        except UnhandledRedirect:
-            log.warning('Unhandled redirect')
+        except Redirect:
             slot_route.navigate(driver)
     log.info('Checking for available slots')
     preferred_slots = []

@@ -17,6 +17,7 @@ class Patterns:
     NOT_LOGGED_IN = "Hello, Sign in"
     OOS_URL = 'gp/buy/itemselect/handlers/display.html'
     OOS = "This item is no longer available"
+    THROTTLE_URL = 'throttle.html'
 
 
 class Locators:
@@ -28,6 +29,8 @@ class Locators:
     OOS_CONTINUE = (By.XPATH, "//*[@name='continue-bottom']")
     CART_ITEMS = (By.XPATH, "//div[@data-name='Active Items']"
                             "/*[contains(@class, 'sc-list-item')]")
+    THROTTLE_CONTINUE = (By.XPATH, "//*[contains(@id, 'throttle') and "
+                                   "@role='button']")
 
 
 class SiteConfig:

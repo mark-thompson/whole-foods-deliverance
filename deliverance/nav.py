@@ -7,7 +7,8 @@ from config import BASE_URL, Patterns
 from deliverance.exceptions import (NavigationException, RouteRedirect,
                                     UnhandledRedirect)
 from deliverance.utils import (wait_for_element, click_when_enabled, jitter,
-                               remove_qs, wait_for_auth, handle_oos)
+                               remove_qs, wait_for_auth, handle_oos,
+                               handle_throttle)
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
         wait_for_auth(driver)
     elif Patterns.OOS_URL in current:
         handle_oos(driver, ignore_oos)
+    elif Patterns.THROTTLE_URL in current:
+        handle_throttle(driver)
+        raise RouteRedirect('Redirected after throttle')
     elif route and current == route.route_start:
         if not route.waypoints_reached:
             driver.refresh()

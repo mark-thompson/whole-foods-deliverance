@@ -12,7 +12,7 @@ from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
 import config
-from deliverance.exceptions import ItemOutOfStock
+from deliverance.exceptions import ItemOutOfStock, UnhandledRedirect
 from deliverance.notify import alert
 
 log = logging.getLogger(__name__)
@@ -212,7 +212,7 @@ def login_flow(driver, force_login):
 # Redirect Handlers
 ##################
 
-def handle_oos(driver, ignore_oos, timeout_mins=5):
+def handle_oos(driver, ignore_oos, timeout_mins=10):
     try:
         save_removed_items(driver)
     except Exception:
@@ -236,3 +236,24 @@ def handle_oos(driver, ignore_oos, timeout_mins=5):
                     'input\n Use `ignore-oos` to bypass these alerts'
                 )
             sleep(1)
+
+
+def handle_throttle(driver, timeout_mins=10):
+    alert('Throttled', 'Sosumi')
+    # Dump source until we're sure we have correct locator for continue button
+    dump_source(driver)
+    try:
+        click_when_enabled(
+            driver,
+            wait_for_element(driver, config.Locators.THROTTLE_CONTINUE),
+            timeout=60
+        )
+    except Exception as e:
+        log.error(e)
+    t = datetime.now()
+    while config.Patterns.THROTTLE_URL in remove_qs(driver.current_url):
+        if int((datetime.now() - t).total_seconds()) > timeout_mins*60:
+            raise UnhandledRedirect(
+                'Throttled and timed out waiting for user input'
+            )
+        sleep(1)
