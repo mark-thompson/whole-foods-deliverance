@@ -109,7 +109,10 @@ class SlotElementMulti(SlotElement):
 
     @property
     def text(self):
-        return get_element_text(self.find_child('a-alert-content'))
+        try:
+            return get_element_text(self.find_child('a-alert-content'))
+        except Exception:
+            return ''
 
     def find_date_element(self):
         id = self.id.replace('slot-container-', '')
