@@ -18,12 +18,15 @@ class Patterns:
     OOS_URL = 'gp/buy/itemselect/handlers/display.html'
     OOS = "This item is no longer available"
     THROTTLE_URL = 'throttle.html'
+    NO_SLOTS_MULTI = "No.*delivery windows are available"
 
 
 class Locators:
     LOGIN = (By.ID, 'nav-link-accountList')
     SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
-    SLOT = (By.XPATH, ".//*[contains(@class, 'ufss-slot ') and "
+    SLOT_CONTAINER_MULTI = (By.ID, 'slot-container-root')
+    SLOT_DATE_MULTI = (By.XPATH, "//*[contains(@id ,'slot-container-20')]")
+    SLOT = (By.XPATH, "//*[contains(@class, 'ufss-slot ') and "
                       "contains(@class, 'ufss-available')]")
     OOS_ITEM = (By.XPATH, "//*[contains(@class, ' item-row')]")
     OOS_CONTINUE = (By.XPATH, "//*[@name='continue-bottom']")

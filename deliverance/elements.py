@@ -60,6 +60,7 @@ class DateElement(WebElement):
 class SlotElement(WebElement):
     STR_XPATH = ['slot-time-window-text', 'slot-price-text']
     STR_SEP = ' - '
+    DATE_CLS = DateElement
 
     def __init__(self, slot_element, date_element=None):
         self._element = slot_element
@@ -69,8 +70,8 @@ class SlotElement(WebElement):
                 slot_element
             ))
             date_element = self.find_date_element()
-        if not isinstance(date_element, DateElement):
-            date_element = DateElement(date_element)
+        if not isinstance(date_element, self.DATE_CLS):
+            date_element = self.DATE_CLS(date_element)
         self._date_element = date_element
 
     @property
@@ -97,6 +98,30 @@ class SlotElement(WebElement):
             self.find_child('ufss-slot-toggle-native-button'),
             **kwargs
         )
+
+
+class DateElementMulti(DateElement):
+    STR_XPATH = ['a-size-base-plus date-button-text', 'calendar-date-text']
+
+
+class SlotElementMulti(SlotElement):
+    DATE_CLS = DateElementMulti
+
+    @property
+    def text(self):
+        return get_element_text(self.find_child('a-alert-content'))
+
+    def find_date_element(self):
+        id = self.id.replace('slot-container-', '')
+        elems = self.driver.find_elements_by_xpath(
+            "//button[contains(@id, 'date-button-{}')]".format(id)
+        )
+        if len(elems) != 1:
+            raise SlotDateElementAmbiguous(
+                'Expected 1 date element but found {}'.format(len(elems))
+            )
+        else:
+            return elems[0]
 
 
 class CartItem(WebElement):
