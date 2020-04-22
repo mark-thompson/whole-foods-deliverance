@@ -7,7 +7,6 @@ from random import uniform
 from datetime import datetime
 from urllib.parse import urlparse
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
@@ -80,19 +79,34 @@ class element_clickable:
             return False
 
 
-def wait_for_elements(driver, locator, timeout=5):
+class presence_of_any_elements_located(object):
+    """An expected condition for use with WebDriverWait"""
+
+    def __init__(self, locators):
+        self.locators = locators
+
+    def __call__(self, driver):
+        for locator in self.locators:
+            elements = driver.find_elements(*locator)
+            if elements:
+                return elements
+        return False
+
+
+def wait_for_elements(driver, locators, timeout=5):
+    if not isinstance(locators, list):
+        locators = [locators]
     try:
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located(locator)
+        return WebDriverWait(driver, timeout).until(
+            presence_of_any_elements_located(locators)
         )
     except TimeoutException:
-        log.error("Timed out waiting for target element: {}".format(locator))
+        log.error("Timed out waiting for target element: {}".format(locators))
         raise
-    return driver.find_elements(*locator)
 
 
-def wait_for_element(driver, locator, **kwargs):
-    return wait_for_elements(driver, locator, **kwargs)[0]
+def wait_for_element(driver, locators, **kwargs):
+    return wait_for_elements(driver, locators, **kwargs)[0]
 
 
 def click_when_enabled(driver, element, timeout=10):

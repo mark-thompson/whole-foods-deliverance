@@ -1,10 +1,8 @@
 import argparse
 import logging
 import toml
-import re
 from time import sleep
 from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
@@ -68,6 +66,7 @@ def save_cart(driver, site_config):
         except Exception:
             log.warning('Failed to parse a cart item')
     if cart:
+        cart = sorted(cart, key=lambda k: k['product_id'])
         log.info('Writing {} cart items to: {}'.format(len(cart), filepath))
         with open(filepath, 'w', encoding='utf-8') as f:
             toml.dump({'cart_item': cart}, f)  # :)
@@ -83,26 +82,15 @@ def get_slots(driver, prefs, slot_route, timeout=5):
     log.info('Checking for available slots')
     preferred_slots = []
     # Wait for one of two possible slot container elements to be present
-    WebDriverWait(driver, timeout).until(
-        lambda driver: (
-            driver.find_elements(*config.Locators.SLOT_CONTAINER)
-            or driver.find_elements(*config.Locators.SLOT_CONTAINER_MULTI)
-        )
-    )
-    # *Temporary*
+    wait_for_elements(driver, [config.Locators.SLOT_CONTAINER,
+                               config.Locators.SLOT_CONTAINER_MULTI])
     if driver.find_elements(*config.Locators.SLOT_CONTAINER_MULTI):
         log.warning('Detected multiple delivery option slot container')
-        slots = []
-        for e in driver.find_elements(*config.Locators.SLOT_DATE_MULTI):
-            slot = SlotElementMulti(e)
-            if not re.search(config.Patterns.NO_SLOTS_MULTI, slot.text):
-                slots.append(str(slot._date_element))
-        if slots:
-            dump_source(driver)
-        return slots
-    slots = [
-        SlotElement(e) for e in driver.find_elements(*config.Locators.SLOT)
-    ]
+        slots = [SlotElementMulti(e) for e in
+                 driver.find_elements(*config.Locators.SLOT_MULTI)]
+    else:
+        slots = [SlotElement(e) for e in
+                 driver.find_elements(*config.Locators.SLOT)]
     if slots:
         log.info('Found {} slots: \n{}'.format(
             len(slots), '\n'.join([s.full_name for s in slots])
@@ -127,19 +115,16 @@ def get_slots(driver, prefs, slot_route, timeout=5):
 
 
 def generate_message(slots, service, checkout):
-    if all(isinstance(slot, str) for slot in slots):
-        text = slots
-    else:
-        text = []
-        for slot in slots:
-            date = str(slot._date_element)
-            if date not in text:
-                text.extend(['', date])
-            text.append(str(slot))
-        if checkout:
-            text.extend(
-                ['\nWill attempt to checkout using slot:', slots[0].full_name]
-            )
+    text = []
+    for slot in slots:
+        date = str(slot._date_element)
+        if date not in text:
+            text.extend(['', date])
+        text.append(str(slot))
+    if checkout:
+        text.extend(
+            ['\nWill attempt to checkout using slot:', slots[0].full_name]
+        )
     if text:
         return '\n'.join([service + " delivery slots found!", *text])
 

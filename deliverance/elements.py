@@ -1,4 +1,5 @@
 import logging
+import re
 
 from deliverance.exceptions import SlotDateElementAmbiguous
 from deliverance.utils import click_when_enabled
@@ -7,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def get_element_text(element):
-    return element.get_attribute('innerText')
+    return element.get_attribute('innerText').strip()
 
 
 class WebElement:
@@ -105,17 +106,25 @@ class DateElementMulti(DateElement):
 
 
 class SlotElementMulti(SlotElement):
+    STR_XPATH = ['slotRadioLabel']
     DATE_CLS = DateElementMulti
 
+    def __str__(self):
+        return self.STR_SEP.join(
+            [self.delivery_type,
+             get_element_text(self.find_child(self.STR_XPATH[0]))]
+        )
+
     @property
-    def text(self):
-        try:
-            return get_element_text(self.find_child('a-alert-content'))
-        except Exception:
-            return ''
+    def delivery_type(self):
+        return re.search(r'(UN)?ATTENDED', self.id).group()
+
+    @property
+    def name(self):
+        return str(self)
 
     def find_date_element(self):
-        id = self.id.replace('slot-container-', '')
+        id = re.search(r'\d{4}-\d{2}-\d{2}', self.id).group()
         elems = self.driver.find_elements_by_xpath(
             "//button[contains(@id, 'date-button-{}')]".format(id)
         )
@@ -125,6 +134,19 @@ class SlotElementMulti(SlotElement):
             )
         else:
             return elems[0]
+
+    def select(self, **kwargs):
+        click_when_enabled(
+            self.driver,
+            self.driver.find_element_by_xpath(
+                "//button[contains(@id, 'selector-button-{}')]".format(
+                    self.delivery_type.lower()
+                )
+            ),
+            **kwargs
+        )
+        self._date_element.select(**kwargs)
+        click_when_enabled(self.driver, self._element, **kwargs)
 
 
 class CartItem(WebElement):
