@@ -31,3 +31,7 @@ tomorrow = [
   # "3:00 PM - 5:00 PM",
   # "11:00 AM - 1:00 PM"
 ]
+
+# To heckout using Amazon Smile, uncomment following lines
+#[url]
+#use_smile = true

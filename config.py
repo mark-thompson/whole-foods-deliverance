@@ -1,9 +1,16 @@
 from selenium.webdriver.common.by import By
-
+import toml
 
 CONF_PATH = 'conf.toml'
 PKL_PATH = '.session_storage.pkl'
-BASE_URL = 'https://www.amazon.com/'
+try:
+    if toml.load(CONF_PATH)["url"]["use_smile"]:
+        BASE_URL = 'https://smile.amazon.com/'
+    else:
+        BASE_URL = 'https://www.amazon.com/'
+except Exception:
+    BASE_URL = 'https://www.amazon.com/'
+
 INTERVAL = 25
 
 VALID_SERVICES = [
