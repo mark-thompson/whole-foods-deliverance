@@ -3,7 +3,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import BASE_URL, Patterns
+from config import Patterns
 from deliverance.exceptions import (NavigationException, RouteRedirect,
                                     UnhandledRedirect)
 from deliverance.utils import (wait_for_element, click_when_enabled, jitter,
@@ -49,11 +49,18 @@ def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
 class Waypoint:
     def __init__(self, locator, dest, optional=False):
         self.locator = locator
+        if not isinstance(dest, list):
+            dest = [dest]
         self.dest = dest
         self.optional = optional
 
     def __str__(self):
         return "<Waypoint {} -> '{}'>".format(self.locator, self.dest)
+
+    def check_current(self, current_url):
+        for d in self.dest:
+            if d in remove_qs(current_url):
+                return d
 
 
 class Route:
@@ -82,8 +89,10 @@ class Route:
         except TimeoutException:
             pass
         current = remove_qs(driver.current_url)
-        if current == BASE_URL + waypoint.dest:
-            log.info("Navigated to '{}'".format(waypoint.dest))
+        if waypoint.check_current(current):
+            log.info(
+                "Navigated to '{}'".format(waypoint.check_current(current))
+            )
         elif valid_dest and any(d in current for d in valid_dest):
             log.info("Navigated to valid dest '{}'".format(current))
         else:
@@ -99,12 +108,13 @@ class Route:
             driver.get(self.route_start)
         for waypoint in self.waypoints:
             try:
-                valid_dest = [
-                    waypnt.dest for waypnt in
-                    self.waypoints[self.waypoints.index(waypoint)+1:]
-                ]
-                if remove_qs(driver.current_url) == BASE_URL + waypoint.dest:
-                    log.warning("Already at dest: '{}'".format(waypoint.dest))
+                valid_dest = []
+                for w in self.waypoints[self.waypoints.index(waypoint)+1:]:
+                    valid_dest.extend(w.dest)
+                if waypoint.check_current(driver.current_url):
+                    log.warning("Already at dest: '{}'".format(
+                        waypoint.check_current(driver.current_url)
+                    ))
                 else:
                     self.navigate_waypoint(driver, waypoint, timeout,
                                            valid_dest)

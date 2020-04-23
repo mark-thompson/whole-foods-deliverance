@@ -93,7 +93,8 @@ class SiteConfig:
                 ),
                 (
                     (By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),
-                    'gp/buy/thankyou/handlers/display.html'
+                    ['gp/buy/thankyou/handlers/display.html',
+                     'gp/buy/spc/handlers/static-submit-decoupled.html']
                 )
             ]
         }

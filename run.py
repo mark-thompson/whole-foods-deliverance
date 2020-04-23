@@ -13,7 +13,7 @@ from deliverance.nav import Route, Waypoint, handle_redirect
 from deliverance.notify import (send_sms, send_telegram, alert, annoy,
                                 conf_dependent)
 from deliverance.utils import (login_flow, wait_for_elements, jitter,
-                               dump_source, remove_qs, timestamp)
+                               dump_source, timestamp)
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def save_cart(driver, site_config):
 
 def get_slots(driver, prefs, slot_route, timeout=5):
     # Make sure we are on the slot select page. If not, nav there
-    if slot_route.waypoints[-1].dest not in remove_qs(driver.current_url):
+    if not slot_route.waypoints[-1].check_current(driver.current_url):
         try:
             handle_redirect(driver, slot_route.args.ignore_oos)
         except Redirect:
