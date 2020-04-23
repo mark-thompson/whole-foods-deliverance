@@ -109,7 +109,7 @@ class Route:
         for waypoint in self.waypoints:
             try:
                 valid_dest = []
-                for w in self.waypoints[self.waypoints.index(waypoint)+1:]:
+                for w in self.waypoints[self.waypoints.index(waypoint):]:
                     valid_dest.extend(w.dest)
                 if waypoint.check_current(driver.current_url):
                     log.warning("Already at dest: '{}'".format(
