@@ -4,6 +4,7 @@ import toml
 import os
 from random import random
 from twilio.rest import Client as TwilioClient
+import platform
 
 from config import CONF_PATH
 
@@ -68,10 +69,22 @@ def send_sms(body, conf):
 def alert(message, sound='Blow'):
     log.info("Alerting user with message: '{}'".format(message))
     try:
-        os.popen(
-            'afplay /System/Library/Sounds/{}.aiff && '
-            'say "{}" --rate 150 --voice Fiona'.format(sound, message)
-        )
+        if platform.system() == "Windows":
+            os.popen(
+                "PowerShell -Command \"Add-Type –AssemblyName System.Speech; "
+                "(New-Object System.Speech.Synthesis.SpeechSynthesizer)."
+                "Speak('{}');".format(message)
+            )
+        elif platform.system() == "Linux":
+            # requires speech-dispatcher
+            os.popen(
+                'spd-say "{}"'.format(message)
+            )
+        else:
+            os.popen(
+                'afplay /System/Library/Sounds/{}.aiff && '
+                'say "{}" --rate 150 --voice Fiona'.format(sound, message)
+            )
     except Exception:
         pass
 
@@ -83,6 +96,7 @@ def annoy():
             os.popen(
                 'sleep {} && afplay /System/Library/Sounds/Sosumi.aiff'.format(
                     random()
-                ))
+                )
+            )
     except Exception:
         pass

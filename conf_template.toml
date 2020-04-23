@@ -32,6 +32,6 @@ tomorrow = [
   # "11:00 AM - 1:00 PM"
 ]
 
-# Provide a different URL for amazon, i.e. if you want to use Smile
-#[base_url]
-#url = "https://smile.amazon.com/"
+# To heckout using Amazon Smile, uncomment following lines
+#[url]
+#use_smile = true
