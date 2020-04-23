@@ -32,6 +32,6 @@ tomorrow = [
   # "11:00 AM - 1:00 PM"
 ]
 
-# To heckout using Amazon Smile, uncomment following lines
-#[url]
-#use_smile = true
+[site_options]
+# To checkout using Amazon Smile, uncomment the following line
+# use_smile = true
