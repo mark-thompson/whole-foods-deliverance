@@ -47,12 +47,12 @@ def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
 
 
 class Waypoint:
-    def __init__(self, locator, dest, optional=False):
+    def __init__(self, locator, dest, callable=None):
         self.locator = locator
         if not isinstance(dest, list):
             dest = [dest]
         self.dest = dest
-        self.optional = optional
+        self.callable = callable
 
     def __str__(self):
         return "<Waypoint {} -> '{}'>".format(self.locator, self.dest)
@@ -78,6 +78,11 @@ class Route:
             self.route_start, len(self))
 
     def navigate_waypoint(self, driver, waypoint, timeout, valid_dest):
+        if callable(waypoint.callable):
+            log.info('Executing {}() before navigation'.format(
+                waypoint.callable.__name__
+            ))
+            waypoint.callable(driver=driver)
         log.info('Navigating ' + str(waypoint))
         elem = wait_for_element(driver, waypoint.locator, timeout=timeout)
         jitter(.4)

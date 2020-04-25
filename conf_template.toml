@@ -35,3 +35,8 @@ tomorrow = [
 [site_options]
 # To checkout using Amazon Smile, uncomment the following line
 # use_smile = true
+
+# For use with automatic checkout:
+# > Specify the last 4 digits of your preferred payment method
+# > If no card info is provided, your default payment method will be used
+preferred_card = ""

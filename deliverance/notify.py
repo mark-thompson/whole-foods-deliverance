@@ -3,6 +3,7 @@ import requests
 import toml
 import os
 from random import random
+from functools import wraps
 from twilio.rest import Client as TwilioClient
 import platform
 
@@ -13,6 +14,7 @@ log = logging.getLogger(__name__)
 
 def conf_dependent(conf_key):
     def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             if 'conf' not in kwargs:
                 try:

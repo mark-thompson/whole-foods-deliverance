@@ -44,6 +44,7 @@ class Locators:
                             "/*[contains(@class, 'sc-list-item')]")
     THROTTLE_CONTINUE = (By.XPATH, "//*[contains(@id, 'throttle') and "
                                    "@role='button']")
+    PAYMENT_ROW = (By.XPATH, "//*[starts-with(@class, 'payment-row')]")
 
 
 class SiteConfig:
@@ -89,7 +90,8 @@ class SiteConfig:
                 ),
                 (
                     (By.ID, 'continue-top'),
-                    'gp/buy/spc/handlers/display.html'
+                    'gp/buy/spc/handlers/display.html',
+                    'select_payment_method'  # function to be called before nav
                 ),
                 (
                     (By.XPATH, "//input[contains(@class, 'place-your-order-button')]"),

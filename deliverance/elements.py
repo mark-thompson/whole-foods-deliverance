@@ -39,14 +39,14 @@ class WebElement:
             ))
         return elems[0]
 
-    def find_child(self, class_pattern):
-        child = self._element.find_elements_by_xpath(
-            ".//*[contains(@class, '{}')]".format(class_pattern)
-        )
+    def find_child(self, xpath_or_pattern):
+        if not re.search(r'/|\[', xpath_or_pattern):
+            xpath = ".//*[contains(@class, '{}')]".format(xpath_or_pattern)
+        else:
+            xpath = xpath_or_pattern
+        child = self._element.find_elements_by_xpath(xpath)
         if len(child) > 1:
-            log.debug("Multiple children found with pattern: '{}'".format(
-                class_pattern
-            ))
+            log.debug("Multiple children found with xpath: '{}'".format(xpath))
         return child[0]
 
     def select(self, **kwargs):
@@ -166,3 +166,16 @@ class CartItem(WebElement):
             'product_id': self.product_id,
             'link': self.find_child('sc-product-link').get_attribute('href')
         }
+
+
+class PaymentRow(WebElement):
+    @property
+    def card_number(self):
+        return get_element_text(self.find_child('card-info')).split(' ')[-1]
+
+    def select(self, **kwargs):
+        click_when_enabled(
+            self.driver,
+            self.find_child(".//input[@type='radio']"),
+            **kwargs
+        )

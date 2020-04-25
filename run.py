@@ -7,7 +7,8 @@ from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from deliverance.elements import SlotElement, SlotElementMulti, CartItem
+from deliverance.elements import (SlotElement, SlotElementMulti, CartItem,
+                                  PaymentRow)
 from deliverance.exceptions import Redirect, RouteRedirect
 from deliverance.nav import Route, Waypoint, handle_redirect
 from deliverance.notify import (send_sms, send_telegram, alert, annoy,
@@ -18,12 +19,43 @@ from deliverance.utils import (login_flow, wait_for_elements, jitter,
 log = logging.getLogger(__name__)
 
 
+@conf_dependent('site_options')
+def select_payment_method(driver, conf):
+    pref_card = conf.get('preferred_card')
+    if not pref_card:
+        log.warning(
+            'Preferred card not provided. Using default payment method'
+        )
+        return
+    for element in driver.find_elements(*config.Locators.PAYMENT_ROW):
+        card_row = PaymentRow(element)
+        if card_row.card_number == pref_card:
+            log.info("Selecting card ending in '{}'".format(pref_card))
+            card_row.select()
+            return
+    log.warning(
+        "Card ending in '{}' not found. Using default payment method".format(
+            pref_card
+        )
+    )
+
+
+NAV_CALLABLES = {
+    'select_payment_method': select_payment_method
+}
+
+
 def build_route(site_config, route_name, parser_args):
     route_dict = site_config.routes[route_name]
+    waypoints = []
+    for waypoint_conf in route_dict['waypoints']:
+        w = Waypoint(*waypoint_conf)
+        w.callable = NAV_CALLABLES.get(w.callable)
+        waypoints.append(w)
     return Route(
         route_dict['route_start'],
         parser_args,
-        *[Waypoint(*w) for w in route_dict['waypoints']]
+        *waypoints
     )
 
 
