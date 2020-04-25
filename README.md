@@ -90,7 +90,7 @@ python run.py -s 'Amazon Fresh' --checkout --ignore-oos --debug
 ### Options
 
 
-##### Service
+#### Service
 Specify the delivery service you are using with the `-s` or `--service` option. Quotes are required.
 
 _Defaults to:_ `'Whole Foods'`
@@ -98,13 +98,13 @@ _Defaults to:_ `'Whole Foods'`
 python run.py -s 'Amazon Fresh'
 ```
 
-##### Checkout
+#### Checkout
 Use the `-c` or `--checkout` flag to attempt to checkout automatically when a slot is found. Uses your delivery window preferences as specified in `conf.toml` under the `slot_preference` key. _See: [config template](https://github.com/mark-thompson/whole-foods-deliverance/blob/master/conf_template.toml)_
 ```
 python run.py --checkout
 ```
 
-##### Ignore-OOS
+#### Ignore-OOS
 At some point, you may encounter an out of stock alert. By default, the program will produce an audio alert and give you some time to continue through the alert prompt if you've decided the item in question isn't essential to your order.
 
 Use the `--ignore-oos` flag if you'd like to bypass these alerts automatically.
@@ -113,21 +113,14 @@ Use the `--ignore-oos` flag if you'd like to bypass these alerts automatically.
 python run.py --ignore-oos
 ```
 
-##### Save-Cart
+#### Save-Cart
 Occasionally (and rather unhelpfully), items will disappear from your cart without generating any kind of alert.
 Use the `--save-cart` flag to write a local file containing all of your cart items before the slot search begins.
 ```
 python run.py --save-cart
 ```
 
-##### Force-Login
-On first run, you will be prompted to login. Subsequent runs will attempt to use locally stored session data.
-If you find you are prompted to login frequently, run the script with the `-f` or `--force_login` flag to force login and refresh the stored data.
-```
-python run.py -f
-```
-
-##### Debug
+#### Debug
 Among other things, the `--debug` flag will save the current page source if a Selenium error is encountered. Use this if you are getting an error and want to help contribute to a fix
 ```
 python run.py --debug

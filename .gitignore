@@ -130,4 +130,5 @@ dmypy.json
 
 test_html/
 conf.toml
+chrome-user-data/
 *.pkl

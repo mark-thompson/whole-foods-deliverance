@@ -2,11 +2,14 @@ from selenium.webdriver.common.by import By
 import toml
 
 CONF_PATH = 'conf.toml'
-PKL_PATH = '.session_storage.pkl'
+USER_DATA_DIR = 'chrome-user-data'
 BASE_URL = 'https://www.amazon.com/'
 try:
-    if toml.load(CONF_PATH)["site_options"]["use_smile"]:
+    options = toml.load(CONF_PATH)['options']
+    if options.get('use_smile'):
         BASE_URL = 'https://smile.amazon.com/'
+    if options.get('chrome_data_dir'):
+        USER_DATA_DIR = options['chrome_data_dir']
 except Exception:
     pass
 

@@ -3,6 +3,7 @@ import logging
 import toml
 from time import sleep
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 from concurrent.futures import ThreadPoolExecutor
 
@@ -13,13 +14,13 @@ from deliverance.exceptions import Redirect, RouteRedirect
 from deliverance.nav import Route, Waypoint, handle_redirect
 from deliverance.notify import (send_sms, send_telegram, alert, annoy,
                                 conf_dependent)
-from deliverance.utils import (login_flow, wait_for_elements, jitter,
-                               dump_source, timestamp)
+from deliverance.utils import (wait_for_elements, wait_for_auth, dump_source,
+                               timestamp, jitter)
 
 log = logging.getLogger(__name__)
 
 
-@conf_dependent('site_options')
+@conf_dependent('options')
 def select_payment_method(driver, conf):
     pref_card = conf.get('preferred_card')
     if not pref_card:
@@ -164,7 +165,7 @@ def generate_message(slots, service, checkout):
 def main_loop(driver, args):
     slot_prefs = get_prefs_from_conf()
     site_config = config.SiteConfig(args.service)
-    login_flow(driver, args.force_login)
+    wait_for_auth(driver)
 
     if args.save_cart:
         try:
@@ -215,8 +216,6 @@ parser = argparse.ArgumentParser(description="wf-deliverance")
 parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
                     default=config.VALID_SERVICES[0],
                     help="The Amazon delivery service to use")
-parser.add_argument('--force-login', '-f', action='store_true',
-                    help="Login and refresh session data if it exists")
 parser.add_argument('--checkout', '-c', action='store_true',
                     help="Select first available slot and checkout")
 parser.add_argument('--ignore-oos', action='store_true',
@@ -244,7 +243,9 @@ if __name__ == '__main__':
         import chromedriver_binary
 
     log.info('Invoking Selenium Chrome webdriver')
-    driver = webdriver.Chrome()
+    opts = Options()
+    opts.add_argument("user-data-dir=" + config.USER_DATA_DIR)
+    driver = webdriver.Chrome(options=opts)
     try:
         main_loop(driver, args)
     except WebDriverException:

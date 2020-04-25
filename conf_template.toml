@@ -32,7 +32,7 @@ tomorrow = [
   # "11:00 AM - 1:00 PM"
 ]
 
-[site_options]
+[options]
 # To checkout using Amazon Smile, uncomment the following line
 # use_smile = true
 
@@ -40,3 +40,8 @@ tomorrow = [
 # > Specify the last 4 digits of your preferred payment method
 # > If no card info is provided, your default payment method will be used
 preferred_card = ""
+
+# Path of an existing chrome data directory:
+# e.g. - "/Users/{user}/Library/Application Support/Google/Chrome/Default/"
+# > Note: only one chrome session per data dir may be open simultaneously
+chrome_data_dir = ""

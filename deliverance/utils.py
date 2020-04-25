@@ -1,7 +1,5 @@
 import logging
-import pickle
 import toml
-import os
 from time import sleep
 from random import uniform
 from datetime import datetime
@@ -127,46 +125,6 @@ def click_when_enabled(driver, element, timeout=10):
 # Auth
 ######
 
-def store_session_data(driver, path=config.PKL_PATH):
-    data = {
-        'cookies': driver.get_cookies(),
-        'storage': {
-            k: driver.execute_script(
-                'for(var k,s=window.{}Storage,d={{}},i=0;i<s.length;++i)'
-                'd[k=s.key(i)]=s.getItem(k);return d'.format(k)
-            ) for k in ['local', 'session']
-        }
-    }
-    if any(data.values()):
-        log.info('Writing session data to: ' + path)
-        with open(path, 'wb') as file:
-            pickle.dump(data, file)
-    else:
-        log.warning('No session data found')
-
-
-def load_session_data(driver, path=config.PKL_PATH):
-    log.info('Reading session data from: ' + path)
-    with open(path, 'rb') as file:
-        data = pickle.load(file)
-    if data.get('cookies'):
-        log.info('Loading {} cookie values'.format(len(data['cookies'])))
-        for c in data['cookies']:
-            if c.get('expiry'):
-                c['expiry'] = int(c['expiry'])
-            driver.add_cookie(c)
-    for _type, values in data['storage'].items():
-        if values:
-            log.info('Loading {} {}Storage values'.format(len(values), _type))
-        for k, v in values.items():
-            driver.execute_script(
-                'window.{}Storage.setItem(arguments[0], arguments[1]);'.format(
-                    _type
-                ),
-                k, v
-            )
-
-
 def is_logged_in(driver):
     if remove_qs(driver.current_url) == config.BASE_URL:
         try:
@@ -201,25 +159,6 @@ def wait_for_auth(driver, timeout_mins=10):
             alert('Log in to proceed')
         sleep(1)
     log.info('Logged in')
-    store_session_data(driver)
-
-
-def login_flow(driver, force_login):
-    log.info('Navigating to ' + config.BASE_URL)
-    driver.get(config.BASE_URL)
-
-    if force_login or not os.path.exists(config.PKL_PATH):
-        # Login and capture Amazon session data...
-        wait_for_auth(driver)
-    else:
-        # ...or load from storage
-        load_session_data(driver)
-        driver.refresh()
-        if is_logged_in(driver):
-            log.info('Successfully logged in via stored session data')
-        else:
-            log.error('Error logging in with stored session data')
-            wait_for_auth(driver)
 
 
 ####################
