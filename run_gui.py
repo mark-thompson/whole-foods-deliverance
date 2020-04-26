@@ -47,6 +47,7 @@ def update_config(args, c):
         c["options"].update({"chrome_data_dir":args.chrome_data_dir})
     else:
         c["options"].update({"chrome_data_dir":""})
+    #and save file
     with open(config.CONF_PATH, 'w') as conf_file:
         toml.dump(c,conf_file)
 
@@ -60,7 +61,10 @@ def run_gui():
     tomorrow = c.get('slot_preference',{}).get("Tomorrow",[])
     chrome_data_dir = c.get('options',{}).get("chrome_data_dir","")
 
-    parser = GooeyParser(description="wf-deliverance")
+    parser = GooeyParser(description="Amazon ordering helper")
+    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                        default=config.VALID_SERVICES[0],
+                        help="The Amazon delivery service to use")
     parser.add_argument('--any_day', help="Delivery preferences for any day", 
                         widget="Listbox", nargs='+', choices=time_slots, default=any_day)
     parser.add_argument('--today', help="Delivery preferences for today", 
@@ -71,9 +75,6 @@ def run_gui():
                         help="Last 4 digits of credit card to use")
     parser.add_argument('--use_smile', action='store_true', default=smile,
                         help="Use Amazon Smile for checkout")
-    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
-                        default=config.VALID_SERVICES[0],
-                        help="The Amazon delivery service to use")
     parser.add_argument('--checkout', '-c', action='store_true',
                         help="Select first available slot and checkout")
     parser.add_argument('--ignore-oos', action='store_true',
