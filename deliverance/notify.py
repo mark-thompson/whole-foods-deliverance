@@ -73,7 +73,7 @@ def alert(message, sound='Blow'):
     try:
         if platform.system() == "Windows":
             os.popen(
-                "PowerShell -Command \"Add-Type –AssemblyName System.Speech; "
+                "PowerShell -noprofile -Command \"Add-Type –AssemblyName System.Speech; "
                 "(New-Object System.Speech.Synthesis.SpeechSynthesizer)."
                 "Speak('{}');".format(message)
             )

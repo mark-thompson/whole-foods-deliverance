@@ -1,0 +1,14 @@
+certifi==2019.11.28
+chardet==3.0.4
+chromedriver-binary==81.0.4044.69.0
+idna==2.9
+PyJWT==1.7.1
+pytz==2019.3
+requests==2.23.0
+selenium==3.141.0
+six==1.14.0
+toml==0.10.0
+twilio==6.38.0
+urllib3==1.25.8
+wxPython==4.0.7
+Gooey==1.0.3
