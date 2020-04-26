@@ -16,6 +16,8 @@ from deliverance.notify import (send_sms, send_telegram, alert, annoy,
                                 conf_dependent)
 from deliverance.utils import (wait_for_elements, wait_for_auth, dump_source,
                                timestamp, jitter)
+import sys
+from gooey import Gooey, GooeyParser
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ NAV_CALLABLES = {
     'select_payment_method': select_payment_method
 }
 
+time_slots = ["Any","11:00 AM - 1:00 PM","1:00 PM - 3:00 PM","3:00 PM - 5:00 PM"]
 
 def build_route(site_config, route_name, parser_args):
     route_dict = site_config.routes[route_name]
@@ -211,27 +214,54 @@ def main_loop(driver, args):
     except Exception as e:
         log.error(e)
 
+@Gooey
+def run_gui():
+    c = toml.load(config.CONF_PATH)
+    card_num = c.get('options',{}).get("preferred_card","")
+    smile = c.get('options',{}).get("use_smile",False)
+    any_day = c.get('slot_preference',{}).get("Any",[])
+    parser = GooeyParser(description="wf-deliverance")
+    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                        default=config.VALID_SERVICES[0],
+                        help="The Amazon delivery service to use")
+    parser.add_argument('--checkout', '-c', action='store_true',
+                        help="Select first available slot and checkout")
+    parser.add_argument('--ignore-oos', action='store_true',
+                        help="Ignores out of stock alerts, but attempts to "
+                             "save removed item details to a local TOML file")
+    parser.add_argument('--save-cart', action='store_true',
+                        help="Saves your cart information to a local TOML file")
+    parser.add_argument('--no-import', action='store_true',
+                        help="Don't import chromedriver_binary. Set this flag "
+                             "if using an existing chromedriver in $PATH")
+    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--card', action='store', default=card_num,
+                        help="Last 4 digits of credit card to use")
+    parser.add_argument('--use_smile', action='store_true', default=smile,
+                        help="Use Amazon Smile for checkout")
+    parser.add_argument('--any_day', help="Delivery preferences for any day", 
+                        widget="Listbox", nargs='+', choices=time_slots, default=any_day)
+    run(parser.parse_args())
 
-parser = argparse.ArgumentParser(description="wf-deliverance")
-parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
-                    default=config.VALID_SERVICES[0],
-                    help="The Amazon delivery service to use")
-parser.add_argument('--checkout', '-c', action='store_true',
-                    help="Select first available slot and checkout")
-parser.add_argument('--ignore-oos', action='store_true',
-                    help="Ignores out of stock alerts, but attempts to "
-                         "save removed item details to a local TOML file")
-parser.add_argument('--save-cart', action='store_true',
-                    help="Saves your cart information to a local TOML file")
-parser.add_argument('--no-import', action='store_true',
-                    help="Don't import chromedriver_binary. Set this flag "
-                         "if using an existing chromedriver in $PATH")
-parser.add_argument('--debug', action='store_true')
+def run_cli():
+    parser = argparse.ArgumentParser(description="wf-deliverance")
+    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                        default=config.VALID_SERVICES[0],
+                        help="The Amazon delivery service to use")
+    parser.add_argument('--checkout', '-c', action='store_true',
+                        help="Select first available slot and checkout")
+    parser.add_argument('--ignore-oos', action='store_true',
+                        help="Ignores out of stock alerts, but attempts to "
+                             "save removed item details to a local TOML file")
+    parser.add_argument('--save-cart', action='store_true',
+                        help="Saves your cart information to a local TOML file")
+    parser.add_argument('--no-import', action='store_true',
+                        help="Don't import chromedriver_binary. Set this flag "
+                             "if using an existing chromedriver in $PATH")
+    parser.add_argument('--debug', action='store_true')
+    run(parser.parse_args())
 
-
-if __name__ == '__main__':
-    args = parser.parse_args()
-
+def run(args):
     logging.basicConfig(
         format='[%(asctime)s] {%(funcName)s} %(levelname)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
@@ -262,3 +292,9 @@ if __name__ == '__main__':
         log.warning('Slumber disturbed')
     log.info('Closing webdriver')
     driver.close()
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        run_cli()
+    else:
+        run_gui()
