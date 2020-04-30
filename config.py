@@ -13,6 +13,7 @@ try:
 except Exception:
     pass
 
+NAV_TIMEOUT = 20
 INTERVAL = 25
 
 VALID_SERVICES = [

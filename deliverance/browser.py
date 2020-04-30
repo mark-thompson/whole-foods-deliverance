@@ -1,15 +1,18 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-from config import SiteConfig, SlotLocators, INTERVAL
+from config import SiteConfig, SlotLocators, INTERVAL, NAV_TIMEOUT
 from deliverance.elements import (SlotElement, SlotElementMulti, PaymentRow,
                                   CartItem)
-from deliverance.exceptions import Redirect, RouteRedirect
-from deliverance.nav import Route, Waypoint, handle_redirect
-from deliverance.nav_handlers import wait_for_auth
+from deliverance.exceptions import Redirect, RouteRedirect, NavigationException
+from deliverance.redirect import wait_for_auth, handle_redirect
 from deliverance.notify import alert, annoy, send_sms, send_telegram
 from deliverance.utils import (wait_for_elements, wait_for_element, remove_qs,
-                               dump_toml, conf_dependent, jitter)
+                               dump_toml, conf_dependent, jitter,
+                               click_when_enabled)
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +62,65 @@ class NavCallables:
         log.warning('Using default payment method')
 
 
+class Waypoint:
+    def __init__(self, locator, dest, callable=None):
+        self.locator = locator
+        if not isinstance(dest, list):
+            dest = [dest]
+        self.dest = dest
+        self.callable = callable
+
+    def __str__(self):
+        return "<Waypoint {} -> '{}'>".format(self.locator, self.dest)
+
+    def check_current(self, current_url):
+        for d in self.dest:
+            if d in remove_qs(current_url):
+                return d
+
+
+class Route:
+    def __init__(self, route_start, *args):
+        self.route_start = route_start
+        self.waypoints = args
+        self.waypoints_reached = 0
+
+    def __len__(self):
+        return len(self.waypoints)
+
+    def __str__(self):
+        return "<Route beginning at '{}' with {} stops>".format(
+            self.route_start, len(self))
+
+    def navigate_waypoint(self, driver, waypoint, timeout, valid_dest):
+        if callable(waypoint.callable):
+            log.info('Executing {}() before navigation'.format(
+                waypoint.callable.__name__
+            ))
+            waypoint.callable(driver=driver)
+        log.info('Navigating ' + str(waypoint))
+        elem = wait_for_element(driver, waypoint.locator, timeout=timeout)
+        jitter(.4)
+        click_when_enabled(driver, elem)
+        try:
+            WebDriverWait(driver, timeout).until(
+                EC.staleness_of(elem)
+            )
+        except TimeoutException:
+            pass
+        current = remove_qs(driver.current_url)
+        if waypoint.check_current(current):
+            log.info(
+                "Navigated to '{}'".format(waypoint.check_current(current))
+            )
+        elif valid_dest and any(d in current for d in valid_dest):
+            log.info("Navigated to valid dest '{}'".format(current))
+        else:
+            raise NavigationException(
+                "Navigation to '{}' failed".format(waypoint.dest)
+            )
+
+
 class Browser:
     def __init__(self, driver, args):
         self.driver = driver
@@ -104,6 +166,35 @@ class Browser:
             # Lazily assume true if we are anywhere but BASE_URL / AUTH pattern
             return True
 
+    def navigate_route(self, route, timeout=NAV_TIMEOUT):
+        if isinstance(route, str):
+            route = self.routes.get(route)
+        log.info('Navigating ' + str(route))
+        route.waypoints_reached = 0
+        if self.current_url != route.route_start:
+            log.info('Navigating to route start: {}'.format(route.route_start))
+            jitter(.4)
+            self.driver.get(route.route_start)
+        for waypoint in route.waypoints:
+            try:
+                valid_dest = []
+                for w in route.waypoints[route.waypoints.index(waypoint):]:
+                    valid_dest.extend(w.dest)
+                if waypoint.check_current(self.current_url):
+                    log.warning("Already at dest: '{}'".format(
+                        waypoint.check_current(self.current_url)
+                    ))
+                else:
+                    route.navigate_waypoint(self.driver, waypoint, timeout,
+                                            valid_dest)
+            except NavigationException:
+                handle_redirect(self,
+                                valid_dest=valid_dest,
+                                timeout=timeout,
+                                route=route)
+            route.waypoints_reached += 1
+        log.info('Route complete')
+
     def determine_slot_type(self):
         log.info('Determining delivery slot type')
         if self.driver.find_elements(*SlotLocators('multi').CONTAINER):
@@ -121,7 +212,7 @@ class Browser:
             try:
                 handle_redirect(self)
             except Redirect:
-                slot_route.navigate(self)
+                self.navigate_route(slot_route)
         # Wait for one of two possible slot container elements to be present
         wait_for_elements(self.driver, [SlotLocators().CONTAINER,
                                         SlotLocators('multi').CONTAINER])
@@ -213,7 +304,7 @@ class Browser:
                 self.save_cart()
             except Exception:
                 log.error('Failed to save cart items')
-        self.routes['SLOT_SELECT'].navigate(self)
+        self.navigate_route('SLOT_SELECT')
         slots = self.get_slots()
         if slots:
             annoy()
@@ -239,7 +330,7 @@ class Browser:
                     try:
                         log.info('Selecting slot: ' + slots[0].full_name)
                         slots[0].select()
-                        self.routes['CHECKOUT'].navigate(self)
+                        self.navigate_route('CHECKOUT')
                         checked_out = True
                         alert('Checkout complete', 'Hero')
                     except RouteRedirect:
