@@ -3,47 +3,12 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import Patterns
-from deliverance.exceptions import (NavigationException, RouteRedirect,
-                                    UnhandledRedirect)
-from deliverance.utils import (wait_for_element, click_when_enabled, jitter,
-                               remove_qs, wait_for_auth, handle_oos,
-                               handle_throttle)
+from deliverance.exceptions import NavigationException
+from deliverance.nav_handlers import handle_redirect
+from deliverance.utils import (wait_for_element, click_when_enabled,
+                               jitter, remove_qs)
 
 log = logging.getLogger(__name__)
-
-
-def handle_redirect(driver, ignore_oos, valid_dest=None, timeout=None,
-                    route=None):
-    current = remove_qs(driver.current_url)
-    log.warning("Redirected to: '{}'".format(current))
-
-    if Patterns.AUTH_URL in current:
-        wait_for_auth(driver)
-    elif Patterns.OOS_URL in current:
-        handle_oos(driver, ignore_oos)
-    elif Patterns.THROTTLE_URL in current:
-        handle_throttle(driver)
-        raise RouteRedirect('Redirected after throttle')
-    elif route and current == route.route_start:
-        if not route.waypoints_reached:
-            driver.refresh()
-        raise RouteRedirect()
-    elif valid_dest and timeout:
-        log.warning(
-            'Handling unknown redirect (timeout in {}s)'.format(timeout)
-        )
-        try:
-            WebDriverWait(driver, timeout).until(
-                EC.url_matches('|'.join(valid_dest))
-            )
-        except TimeoutException:
-            raise UnhandledRedirect(
-                "Timed out waiting for redirect to a valid dest\n"
-                "Current URL: '{}'".format(driver.current_url)
-            )
-    else:
-        raise UnhandledRedirect()
 
 
 class Waypoint:
@@ -64,9 +29,8 @@ class Waypoint:
 
 
 class Route:
-    def __init__(self, route_start, parser_args, *args):
+    def __init__(self, route_start, *args):
         self.route_start = route_start
-        self.args = parser_args
         self.waypoints = args
         self.waypoints_reached = 0
 
@@ -105,27 +69,27 @@ class Route:
                 "Navigation to '{}' failed".format(waypoint.dest)
             )
 
-    def navigate(self, driver, timeout=20):
+    def navigate(self, browser, timeout=20):
         log.info('Navigating ' + str(self))
         self.waypoints_reached = 0
-        if remove_qs(driver.current_url) != self.route_start:
+        if browser.current_url != self.route_start:
             log.info('Navigating to route start: {}'.format(self.route_start))
-            driver.get(self.route_start)
+            jitter(.4)
+            browser.driver.get(self.route_start)
         for waypoint in self.waypoints:
             try:
                 valid_dest = []
                 for w in self.waypoints[self.waypoints.index(waypoint):]:
                     valid_dest.extend(w.dest)
-                if waypoint.check_current(driver.current_url):
+                if waypoint.check_current(browser.current_url):
                     log.warning("Already at dest: '{}'".format(
-                        waypoint.check_current(driver.current_url)
+                        waypoint.check_current(browser.current_url)
                     ))
                 else:
-                    self.navigate_waypoint(driver, waypoint, timeout,
+                    self.navigate_waypoint(browser.driver, waypoint, timeout,
                                            valid_dest)
             except NavigationException:
-                handle_redirect(driver,
-                                ignore_oos=self.args.ignore_oos,
+                handle_redirect(browser,
                                 valid_dest=valid_dest,
                                 timeout=timeout,
                                 route=self)
