@@ -116,6 +116,10 @@ def wait_for_element(driver, locators, **kwargs):
     return wait_for_elements(driver, locators, **kwargs)[0]
 
 
+def get_element_text(element):
+    return element.get_attribute('innerText').strip()
+
+
 def click_when_enabled(driver, element, timeout=10):
     element = WebDriverWait(driver, timeout).until(
         element_clickable(element)

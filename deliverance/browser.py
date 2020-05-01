@@ -92,34 +92,6 @@ class Route:
         return "<Route beginning at '{}' with {} stops>".format(
             self.route_start, len(self))
 
-    def navigate_waypoint(self, driver, waypoint, timeout, valid_dest):
-        if callable(waypoint.callable):
-            log.info('Executing {}() before navigation'.format(
-                waypoint.callable.__name__
-            ))
-            waypoint.callable(driver=driver)
-        log.info('Navigating ' + str(waypoint))
-        elem = wait_for_element(driver, waypoint.locator, timeout=timeout)
-        jitter(.4)
-        click_when_enabled(driver, elem)
-        try:
-            WebDriverWait(driver, timeout).until(
-                EC.staleness_of(elem)
-            )
-        except TimeoutException:
-            pass
-        current = remove_qs(driver.current_url)
-        if waypoint.check_current(current):
-            log.info(
-                "Navigated to '{}'".format(waypoint.check_current(current))
-            )
-        elif valid_dest and any(d in current for d in valid_dest):
-            log.info("Navigated to valid dest '{}'".format(current))
-        else:
-            raise NavigationException(
-                "Navigation to '{}' failed".format(waypoint.dest)
-            )
-
 
 class Browser:
     def __init__(self, driver, args):
@@ -166,7 +138,32 @@ class Browser:
             # Lazily assume true if we are anywhere but BASE_URL / AUTH pattern
             return True
 
-    def navigate_route(self, route, timeout=NAV_TIMEOUT):
+    def navigate_waypoint(self, waypoint, timeout, valid_dest):
+        if callable(waypoint.callable):
+            log.info('Executing {}() before navigation'.format(
+                waypoint.callable.__name__
+            ))
+            waypoint.callable(browser=self)
+        log.info('Navigating ' + str(waypoint))
+        elem = wait_for_element(self.driver, waypoint.locator, timeout=timeout)
+        jitter(.4)
+        click_when_enabled(self.driver, elem)
+        try:
+            WebDriverWait(self.driver, timeout).until(EC.staleness_of(elem))
+        except TimeoutException:
+            pass
+        if waypoint.check_current(self.current_url):
+            log.info("Navigated to '{}'".format(
+                waypoint.check_current(self.current_url)
+            ))
+        elif valid_dest and any(d in self.current_url for d in valid_dest):
+            log.info("Navigated to valid dest '{}'".format(self.current_url))
+        else:
+            raise NavigationException(
+                "Navigation to '{}' failed".format(waypoint.dest)
+            )
+
+    def navigate_route(self, route, retry=False, timeout=NAV_TIMEOUT):
         if isinstance(route, str):
             route = self.routes.get(route)
         log.info('Navigating ' + str(route))
@@ -185,13 +182,20 @@ class Browser:
                         waypoint.check_current(self.current_url)
                     ))
                 else:
-                    route.navigate_waypoint(self.driver, waypoint, timeout,
-                                            valid_dest)
+                    self.navigate_waypoint(waypoint, timeout, valid_dest)
             except NavigationException:
-                handle_redirect(self,
-                                valid_dest=valid_dest,
-                                timeout=timeout,
-                                route=route)
+                try:
+                    handle_redirect(self,
+                                    valid_dest=valid_dest,
+                                    timeout=timeout,
+                                    route=route)
+                except RouteRedirect:
+                    if retry:
+                        log.warning('Retrying route')
+                        self.navigate_route(route, timeout=timeout)
+                        return
+                    else:
+                        raise
             route.waypoints_reached += 1
         log.info('Route complete')
 
@@ -212,7 +216,7 @@ class Browser:
             try:
                 handle_redirect(self)
             except Redirect:
-                self.navigate_route(slot_route)
+                self.navigate_route(slot_route, retry=True)
         # Wait for one of two possible slot container elements to be present
         wait_for_elements(self.driver, [SlotLocators().CONTAINER,
                                         SlotLocators('multi').CONTAINER])
@@ -304,7 +308,7 @@ class Browser:
                 self.save_cart()
             except Exception:
                 log.error('Failed to save cart items')
-        self.navigate_route('SLOT_SELECT')
+        self.navigate_route('SLOT_SELECT', retry=True)
         slots = self.get_slots()
         if slots:
             annoy()
