@@ -6,6 +6,7 @@ import sys
 
 time_slots = [
     "Any",
+    "5:00 AM - 7:00 AM",
     "7:00 AM - 9:00 AM",
     "9:00 AM - 11:00 AM",
     "11:00 AM - 1:00 PM",
@@ -47,6 +48,22 @@ def update_config(args, c):
         c["options"].update({"chrome_data_dir":args.chrome_data_dir})
     else:
         c["options"].update({"chrome_data_dir":""})
+    if args.checkout:
+        c["options"].update({"checkout":args.checkout})
+    else:
+        c["options"].update({"checkout":False})
+    if args.ignore_oos:
+        c["options"].update({"ignore_oos":args.ignore_oos})
+    else:
+        c["options"].update({"ignore_oos":False})
+    if args.save_cart:
+        c["options"].update({"save_cart":args.save_cart})
+    else:
+        c["options"].update({"save_cart":False})
+    if args.no_import:
+        c["options"].update({"no_import":args.no_import})
+    else:
+        c["options"].update({"no_import":False})
     #and save file
     with open(config.CONF_PATH, 'w') as conf_file:
         toml.dump(c,conf_file)
@@ -60,6 +77,10 @@ def run_gui():
     today = c.get('slot_preference',{}).get("Today",[])
     tomorrow = c.get('slot_preference',{}).get("Tomorrow",[])
     chrome_data_dir = c.get('options',{}).get("chrome_data_dir","")
+    checkout = c.get('options',{}).get("checkout","")
+    ignore_oos = c.get('options',{}).get("ignore_oos","")
+    save_cart = c.get('options',{}).get("save_cart","")
+    no_import = c.get('options',{}).get("no_import","")    
 
     parser = GooeyParser(description="Amazon ordering helper")
     parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
@@ -75,14 +96,14 @@ def run_gui():
                         help="Last 4 digits of credit card to use")
     parser.add_argument('--use_smile', action='store_true', default=smile,
                         help="Use Amazon Smile for checkout")
-    parser.add_argument('--checkout', '-c', action='store_true',
+    parser.add_argument('--checkout', '-c', action='store_true', default=checkout,
                         help="Select first available slot and checkout")
-    parser.add_argument('--ignore-oos', action='store_true',
+    parser.add_argument('--ignore-oos', action='store_true', default=ignore_oos,
                         help="Ignores out of stock alerts, but attempts to "
                              "save removed item details to a local TOML file")
-    parser.add_argument('--save-cart', action='store_true',
+    parser.add_argument('--save-cart', action='store_true', default=save_cart,
                         help="Saves your cart information to a local TOML file")
-    parser.add_argument('--no-import', action='store_true',
+    parser.add_argument('--no-import', action='store_true', default=no_import,
                         help="Don't import chromedriver_binary. Set this flag "
                              "if using an existing chromedriver in $PATH")
     parser.add_argument('--chrome_data_dir', default=chrome_data_dir, widget='DirChooser',

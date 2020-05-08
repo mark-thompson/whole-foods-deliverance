@@ -2,13 +2,9 @@ import logging
 import re
 
 from deliverance.exceptions import SlotDateElementAmbiguous
-from deliverance.utils import click_when_enabled
+from deliverance.utils import click_when_enabled, get_element_text
 
 log = logging.getLogger(__name__)
-
-
-def get_element_text(element):
-    return element.get_attribute('innerText').strip()
 
 
 class WebElement:

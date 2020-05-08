@@ -13,6 +13,7 @@ try:
 except Exception:
     pass
 
+NAV_TIMEOUT = 20
 INTERVAL = 25
 
 VALID_SERVICES = [
@@ -32,15 +33,6 @@ class Patterns:
 
 class Locators:
     LOGIN = (By.ID, 'nav-link-accountList')
-    SLOT_CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
-    SLOT = (By.XPATH, "//*[contains(@class, 'ufss-slot ') and "
-                      "contains(@class, 'ufss-available')]")
-    SLOT_CONTINUE = (By.XPATH, "//*[contains(@class, 'ufss-overview-continue-button')]")
-    SLOT_CONTAINER_MULTI = (By.ID, 'slot-container-root')
-    SLOT_MULTI = (By.XPATH, "//*[starts-with(@id, 'slot-button-root-20') and "
-                            "not(contains(@class, 'disabled'))]")
-    SLOT_CONTINUE_MULTI = (By.XPATH, "//input[@class='a-button-text a-declarative' and "
-                                     "@type='submit']")
     OOS_ITEM = (By.XPATH, "//*[contains(@class, ' item-row')]")
     OOS_CONTINUE = (By.XPATH, "//*[@name='continue-bottom']")
     CART_ITEMS = (By.XPATH, "//div[@data-name='Active Items']"
@@ -48,6 +40,35 @@ class Locators:
     THROTTLE_CONTINUE = (By.XPATH, "//*[contains(@id, 'throttle') and "
                                    "@role='button']")
     PAYMENT_ROW = (By.XPATH, "//*[starts-with(@class, 'payment-row')]")
+
+
+class SlotLocators:
+    def __init__(self, slot_type='single'):
+        if slot_type == 'single':
+            self.CONTAINER = (By.CLASS_NAME, 'ufss-slotselect-container')
+            self.SLOT = (
+                By.XPATH,
+                "//*[contains(@class, 'ufss-slot ') and "
+                "contains(@class, 'ufss-available')]"
+            )
+            self.CONTINUE = (
+                By.XPATH,
+                "//*[contains(@class, 'ufss-overview-continue-button')]"
+            )
+        elif slot_type == 'multi':
+            self.CONTAINER = (By.ID, 'slot-container-root')
+            self.SLOT = (
+                By.XPATH,
+                "//*[starts-with(@id, 'slot-button-root-20') and "
+                "not(contains(@class, 'disabled'))]"
+            )
+            self.CONTINUE = (
+                By.XPATH,
+                "//input[@class='a-button-text a-declarative' and "
+                "@type='submit']"
+            )
+        else:
+            raise ValueError("Unrecognized slot type '{}'".format(slot_type))
 
 
 class SiteConfig:
@@ -59,7 +80,9 @@ class SiteConfig:
                 )
             )
         self.service = service
+        self.BASE_URL = BASE_URL
         self.Locators = Locators()
+        self.Patterns = Patterns()
         self.routes = {}
         self.routes['SLOT_SELECT'] = {
             'route_start': BASE_URL,
@@ -88,7 +111,7 @@ class SiteConfig:
             'route_start': BASE_URL + 'gp/buy/shipoptionselect/handlers/display.html',
             'waypoints': [
                 (
-                    [Locators.SLOT_CONTINUE, Locators.SLOT_CONTINUE_MULTI],
+                    [SlotLocators().CONTINUE, SlotLocators('multi').CONTINUE],
                     'gp/buy/payselect/handlers/display.html'
                 ),
                 (

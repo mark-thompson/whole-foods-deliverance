@@ -1,18 +1,39 @@
-import logging
 import toml
+import random
+import logging
 from time import sleep
-from random import uniform
+from functools import wraps
 from datetime import datetime
 from urllib.parse import urlparse
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import (ElementClickInterceptedException,
                                         TimeoutException)
 
-import config
-from deliverance.exceptions import ItemOutOfStock, UnhandledRedirect
-from deliverance.notify import alert
+from config import CONF_PATH
 
 log = logging.getLogger(__name__)
+
+
+def conf_dependent(conf_key):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if 'conf' not in kwargs:
+                try:
+                    kwargs['conf'] = toml.load(CONF_PATH)[conf_key]
+                except Exception:
+                    log.error("{}() requires a config file at"
+                              " '{}' with key '{}'".format(func.__name__,
+                                                           CONF_PATH,
+                                                           conf_key))
+                    return
+            try:
+                return func(*args, **kwargs)
+            except Exception:
+                log.error('Action failed:', exc_info=True)
+                return
+        return wrapper
+    return decorator
 
 
 def remove_qs(url):
@@ -20,13 +41,21 @@ def remove_qs(url):
     return url.split('?')[0]
 
 
-def jitter(seconds, pct=20):
+def jitter(seconds):
     """This seems unnecessary"""
-    sleep(uniform(seconds*(1-pct/100), seconds*(1+pct/100)))
+    pct = abs(random.gauss(.2, .05))
+    sleep(random.uniform(seconds*(1-pct), seconds*(1+pct)))
 
 
 def timestamp():
     return datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+
+
+def dump_toml(obj, name):
+    filepath = '{}_{}.toml'.format(name, timestamp())
+    log.info('Writing {} items to: {}'.format(len(obj), filepath))
+    with open(filepath, 'w', encoding='utf-8') as f:
+        toml.dump(obj, f)
 
 
 def dump_source(driver):
@@ -38,26 +67,6 @@ def dump_source(driver):
     log.info('Dumping page source to: ' + filename)
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(driver.page_source)
-
-
-def save_removed_items(driver):
-    """Writes OOS items that have been removed from cart to a TOML file"""
-    removed = []
-    for item in driver.find_elements(*config.Locators.OOS_ITEM):
-        if config.Patterns.OOS in item.text:
-            removed.append({
-                'text': item.text.split(config.Patterns.OOS)[0],
-                'product_id': item.find_element_by_xpath(
-                        ".//*[starts-with(@name, 'asin')]"
-                    ).get_attribute('value')
-            })
-    if not removed:
-        log.warning("Couldn't detect any removed items to save")
-    else:
-        fp = 'removed_items_{}.toml'.format(timestamp())
-        log.info('Writing {} removed items to: {}'.format(len(removed), fp))
-        with open(fp, 'w', encoding='utf-8') as f:
-            toml.dump({'items': removed}, f)
 
 
 ###########
@@ -107,6 +116,10 @@ def wait_for_element(driver, locators, **kwargs):
     return wait_for_elements(driver, locators, **kwargs)[0]
 
 
+def get_element_text(element):
+    return element.get_attribute('innerText').strip()
+
+
 def click_when_enabled(driver, element, timeout=10):
     element = WebDriverWait(driver, timeout).until(
         element_clickable(element)
@@ -119,94 +132,3 @@ def click_when_enabled(driver, element, timeout=10):
         log.warning('Click intercepted. Waiting for {}s'.format(delay))
         sleep(delay)
         element.click()
-
-
-#######
-# Auth
-######
-
-def is_logged_in(driver):
-    if remove_qs(driver.current_url) == config.BASE_URL:
-        try:
-            text = wait_for_element(driver, config.Locators.LOGIN).text
-            return config.Patterns.NOT_LOGGED_IN not in text
-        except Exception:
-            return False
-    elif config.Patterns.AUTH_URL in remove_qs(driver.current_url):
-        return False
-    else:
-        # Lazily assume true if we are anywhere but BASE_URL or AUTH pattern
-        return True
-
-
-def wait_for_auth(driver, timeout_mins=10):
-    t = datetime.now()
-    alerted = []
-    if is_logged_in(driver):
-        log.debug('Already logged in')
-        return
-    log.info('Waiting for user login...')
-    while not is_logged_in(driver):
-        elapsed = int((datetime.now() - t).total_seconds() / 60)
-        if is_logged_in(driver):
-            break
-        elif elapsed > timeout_mins:
-            raise RuntimeError(
-                'Timed out waiting for login (>= {}min)'.format(timeout_mins)
-            )
-        elif elapsed not in alerted:
-            alerted.append(elapsed)
-            alert('Log in to proceed')
-        sleep(1)
-    log.info('Logged in')
-
-
-####################
-# Redirect Handlers
-##################
-
-def handle_oos(driver, ignore_oos, timeout_mins=10):
-    try:
-        save_removed_items(driver)
-    except Exception:
-        log.error('Could not save removed items')
-    if ignore_oos:
-        log.warning('Attempting to proceed through OOS alert')
-        click_when_enabled(
-            driver,
-            wait_for_element(driver, config.Locators.OOS_CONTINUE)
-        )
-    else:
-        t = datetime.now()
-        alert(
-            "An item is out of stock. Press continue if you'd like to proceed",
-            'Sosumi'
-        )
-        while config.Patterns.OOS_URL in remove_qs(driver.current_url):
-            if int((datetime.now() - t).total_seconds()) > timeout_mins*60:
-                raise ItemOutOfStock(
-                    'Encountered OOS alert and timed out waiting for user '
-                    'input\n Use `ignore-oos` to bypass these alerts'
-                )
-            sleep(1)
-
-
-def handle_throttle(driver, timeout_mins=10):
-    alert('Throttled', 'Sosumi')
-    # Dump source until we're sure we have correct locator for continue button
-    dump_source(driver)
-    try:
-        click_when_enabled(
-            driver,
-            wait_for_element(driver, config.Locators.THROTTLE_CONTINUE),
-            timeout=60
-        )
-    except Exception as e:
-        log.error(e)
-    t = datetime.now()
-    while config.Patterns.THROTTLE_URL in remove_qs(driver.current_url):
-        if int((datetime.now() - t).total_seconds()) > timeout_mins*60:
-            raise UnhandledRedirect(
-                'Throttled and timed out waiting for user input'
-            )
-        sleep(1)

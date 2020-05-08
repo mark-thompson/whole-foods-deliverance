@@ -1,37 +1,13 @@
 import logging
 import requests
-import toml
 import os
 from random import random
-from functools import wraps
 from twilio.rest import Client as TwilioClient
 import platform
 
-from config import CONF_PATH
+from deliverance.utils import conf_dependent
 
 log = logging.getLogger(__name__)
-
-
-def conf_dependent(conf_key):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if 'conf' not in kwargs:
-                try:
-                    kwargs['conf'] = toml.load(CONF_PATH)[conf_key]
-                except Exception:
-                    log.error("{}() requires a config file at"
-                              " '{}' with key '{}'".format(func.__name__,
-                                                           CONF_PATH,
-                                                           conf_key))
-                    return
-            try:
-                return func(*args, **kwargs)
-            except Exception:
-                log.error('Action failed:', exc_info=True)
-                return
-        return wrapper
-    return decorator
 
 
 @conf_dependent('telegram')
