@@ -5,10 +5,9 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from deliverance.exceptions import (RouteRedirect, UnhandledRedirect,
-                                    ItemOutOfStock)
-from deliverance.utils import wait_for_element, click_when_enabled, dump_source
-from deliverance.notify import alert
+from .exceptions import RouteRedirect, UnhandledRedirect, ItemOutOfStock
+from .utils import wait_for_element, click_when_enabled, dump_source
+from .notify import alert
 
 log = logging.getLogger(__name__)
 

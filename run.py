@@ -7,8 +7,8 @@ from selenium.common.exceptions import WebDriverException
 
 import config
 from deliverance.notify import alert
-from deliverance.browser import Browser
 from deliverance.utils import dump_source
+from deliverance import Browser
 
 log = logging.getLogger(__name__)
 

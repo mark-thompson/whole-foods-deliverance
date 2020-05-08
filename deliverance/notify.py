@@ -5,7 +5,7 @@ from random import random
 from twilio.rest import Client as TwilioClient
 import platform
 
-from deliverance.utils import conf_dependent
+from .utils import conf_dependent
 
 log = logging.getLogger(__name__)
 
