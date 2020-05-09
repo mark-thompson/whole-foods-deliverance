@@ -12,26 +12,25 @@ from deliverance import Browser
 
 log = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser(description="wf-deliverance")
-parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
-                    default=config.VALID_SERVICES[0],
-                    help="The Amazon delivery service to use")
-parser.add_argument('--checkout', '-c', action='store_true',
-                    help="Select first available slot and checkout")
-parser.add_argument('--ignore-oos', action='store_true',
-                    help="Ignores out of stock alerts, but attempts to "
-                         "save removed item details to a local TOML file")
-parser.add_argument('--save-cart', action='store_true',
-                    help="Saves your cart information to a local TOML file")
-parser.add_argument('--no-import', action='store_true',
-                    help="Don't import chromedriver_binary. Set this flag "
-                         "if using an existing chromedriver in $PATH")
-parser.add_argument('--debug', action='store_true')
+def run_cli():
+    parser = argparse.ArgumentParser(description="wf-deliverance")
+    parser.add_argument('--service', '-s', choices=config.VALID_SERVICES,
+                        default=config.VALID_SERVICES[0],
+                        help="The Amazon delivery service to use")
+    parser.add_argument('--checkout', '-c', action='store_true',
+                        help="Select first available slot and checkout")
+    parser.add_argument('--ignore-oos', action='store_true',
+                        help="Ignores out of stock alerts, but attempts to "
+                             "save removed item details to a local TOML file")
+    parser.add_argument('--save-cart', action='store_true',
+                        help="Saves your cart information to a local TOML file")
+    parser.add_argument('--no-import', action='store_true',
+                        help="Don't import chromedriver_binary. Set this flag "
+                             "if using an existing chromedriver in $PATH")
+    parser.add_argument('--debug', action='store_true')
+    run(parser.parse_args())
 
-
-if __name__ == '__main__':
-    args = parser.parse_args()
-
+def run(args):
     logging.basicConfig(
         format='[%(asctime)s] {%(funcName)s} %(levelname)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
@@ -62,3 +61,6 @@ if __name__ == '__main__':
         log.warning('Slumber disturbed')
     log.info('Closing webdriver')
     driver.close()
+
+if __name__ == '__main__':
+    run_cli()
