@@ -9,4 +9,4 @@ selenium==3.141.0
 six==1.14.0
 toml==0.10.0
 twilio==6.38.0
-urllib3==1.25.8
+urllib3==1.26.5
